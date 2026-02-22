@@ -1,74 +1,107 @@
 # 🏪 Sistema POS Morales
 
-Sistema de Punto de Venta moderno y adaptable, desarrollado con Java Spring Boot (backend) y React + TypeScript (frontend).
+Sistema de Punto de Venta moderno y adaptable para restaurantes y negocios de retail, desarrollado con Java Spring Boot (backend) y React + TypeScript (frontend).
 
-## 📋 Características
+## 📋 Módulos del Sistema
 
-- **Punto de Venta (POS)**: Interfaz intuitiva para ventas rápidas
-- **Gestión de Productos**: Catálogo completo con categorías
-- **Control de Inventario**: Stock, alertas y movimientos
-- **Facturación**: Facturas, cotizaciones y devoluciones
-- **Clientes**: Base de datos de clientes con historial
-- **Reportes**: Análisis de ventas y estadísticas
-- **Usuarios**: Control de acceso basado en roles
-- **Configuración**: Personalización de tema y empresa
+| Módulo | Descripción |
+|---|---|
+| **POS** | Ventas rápidas con carrito, descuentos, domicilio y pre-cuenta |
+| **Mesas** | Gestión de mesas por zonas, sesiones activas y pago con cargo de servicio |
+| **Cocina** | Display en tiempo real de pedidos pendientes con prioridad y agrupación por lote |
+| **Productos** | Catálogo con categorías jerárquicas, imágenes y precios |
+| **Inventario** | Stock, alertas de mínimo y movimientos con trazabilidad |
+| **Facturas** | Historial de ventas con impresión térmica 58mm |
+| **Clientes** | Base de datos con historial de compras |
+| **Promociones** | Descuentos por día de semana y rango de fechas |
+| **Reportes** | Análisis de ventas con filtros por fecha |
+| **Usuarios** | Gestión de usuarios con asignación de roles |
+| **Roles** | Control de acceso granular por módulo y permiso |
+| **Configuración** | Tema, colores, empresa y ajustes de mesas |
 
 ## 🛠️ Tecnologías
 
 ### Backend (`back-mor`)
 - Java 17
 - Spring Boot 3.2
-- Spring Security + JWT
-- Spring Data JPA
-- PostgreSQL
-- Flyway (migraciones)
+- Spring Security + JWT (access + refresh token)
+- Spring Data JPA / Hibernate
+- PostgreSQL 14+
+- Flyway (migraciones versionadas V1–V11)
+- Server-Sent Events (SSE) para tiempo real
 - Maven
 
 ### Frontend (`front-emy`)
-- React 18
-- TypeScript
+- React 18 + TypeScript
 - Vite
-- Redux Toolkit
+- Redux Toolkit (auth, carrito, settings)
 - React Router v6
 - Tailwind CSS
 - Lucide Icons
-- React Hook Form + Zod
+- Axios con interceptores de refresh token automático
 
 ## 📁 Estructura del Proyecto
 
 ```
 sistema_morales/
-├── back-mor/                    # Backend Spring Boot
+├── back-mor/                          # Backend Spring Boot
 │   ├── src/main/java/com/morales/pos/
-│   │   ├── application/         # DTOs, servicios
-│   │   ├── domain/              # Entidades, repositorios, enums
-│   │   ├── infrastructure/      # Configuración, seguridad
-│   │   └── presentation/        # Controladores
+│   │   ├── application/
+│   │   │   ├── dto/                   # Request/Response DTOs
+│   │   │   └── service/               # Lógica de negocio
+│   │   ├── domain/
+│   │   │   ├── entity/                # Entidades JPA
+│   │   │   ├── enums/                 # KitchenStatus, PaymentMethod, etc.
+│   │   │   └── repository/            # Repositorios Spring Data
+│   │   ├── infrastructure/
+│   │   │   └── security/              # JWT, filtros, configuración CORS
+│   │   └── presentation/
+│   │       └── controller/            # Controladores REST
 │   └── src/main/resources/
-│       ├── db/migration/        # Scripts SQL Flyway
-│       └── application.yml      # Configuración
+│       ├── db/migration/              # V1–V11 scripts Flyway
+│       └── application.yml            # Configuración principal
 │
-├── front-emy/                   # Frontend React
+├── front-emy/                         # Frontend React
 │   ├── src/
-│   │   ├── app/                 # Store, rutas principales
-│   │   ├── core/                # API, auth, utilidades
-│   │   ├── modules/             # Módulos funcionales
+│   │   ├── app/                       # Store Redux, App.tsx, rutas
+│   │   ├── core/
+│   │   │   ├── api/                   # Servicios Axios por módulo
+│   │   │   ├── auth/                  # ProtectedRoute, RoleGuard
+│   │   │   └── hooks/                 # useSseEvents, useTokenExpiry
+│   │   ├── modules/                   # Un directorio por módulo
 │   │   │   ├── auth/
 │   │   │   ├── dashboard/
 │   │   │   ├── pos/
+│   │   │   ├── tables/
+│   │   │   ├── kitchen/
 │   │   │   ├── products/
 │   │   │   ├── categories/
 │   │   │   ├── inventory/
 │   │   │   ├── invoices/
 │   │   │   ├── customers/
+│   │   │   ├── promotions/
 │   │   │   ├── reports/
 │   │   │   ├── users/
+│   │   │   ├── roles/
 │   │   │   └── settings/
-│   │   └── shared/              # Componentes, estilos
+│   │   └── shared/
+│   │       ├── components/            # Button, Input, Layout, etc.
+│   │       └── utils/                 # printInvoice.ts (térmica 58mm)
 │   └── package.json
-│
-└── SISTEMA_POS_MORALES_DESIGN.md  # Documento de diseño
 ```
+
+## 🔑 Roles del Sistema
+
+| Rol | Acceso |
+|---|---|
+| **ADMIN** | Acceso total a todos los módulos |
+| **SUPERVISOR** | Productos, categorías, inventario, promociones, mesas, reportes, roles |
+| **CAJERO** | POS, facturas, clientes, mesas |
+| **MESERO** | Mesas (abrir, agregar ítems, notas), productos (solo ver) |
+| **COCINERO** | Cocina (ver pedidos, actualizar estado) |
+| **INVENTARIO** | Productos, categorías, inventario |
+
+> Los roles de sistema (ADMIN, SUPERVISOR, CAJERO, MESERO, COCINERO) no pueden eliminarse. Se pueden crear roles personalizados con permisos granulares desde el módulo **Roles**.
 
 ## 🚀 Instalación
 
@@ -82,37 +115,32 @@ sistema_morales/
 ### 1. Configurar Base de Datos
 
 ```sql
--- Crear base de datos y usuario en PostgreSQL
 CREATE DATABASE morales_pos;
-CREATE USER morales_user WITH PASSWORD 'morales_2024';
+CREATE USER morales_user WITH PASSWORD 'tu_password_seguro';
 GRANT ALL PRIVILEGES ON DATABASE morales_pos TO morales_user;
 ```
 
 ### 2. Configurar Backend
 
+Copiar y editar las variables de entorno antes de ejecutar:
+
 ```bash
-# Navegar al directorio del backend
 cd back-mor
+cp src/main/resources/application.yml src/main/resources/application-local.yml
+# Editar application-local.yml con tus credenciales reales
 
-# Compilar el proyecto
 mvn clean install -DskipTests
-
-# Ejecutar (las migraciones se aplicarán automáticamente)
 mvn spring-boot:run
 ```
 
-El backend estará disponible en: `http://localhost:8080`
+El backend estará disponible en: `http://localhost:8080`  
+Las migraciones Flyway se aplican automáticamente al iniciar.
 
 ### 3. Configurar Frontend
 
 ```bash
-# Navegar al directorio del frontend
 cd front-emy
-
-# Instalar dependencias
 npm install
-
-# Ejecutar en modo desarrollo
 npm run dev
 ```
 
@@ -123,7 +151,7 @@ El frontend estará disponible en: `http://localhost:5173`
 - **Usuario**: `admin`
 - **Contraseña**: `admin123`
 
-> ⚠️ **Importante**: Cambiar la contraseña en producción.
+> ⚠️ **Importante**: Cambiar la contraseña inmediatamente en producción desde el módulo Usuarios.
 
 ## ⚙️ Variables de Entorno
 
@@ -134,82 +162,121 @@ spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/morales_pos
     username: morales_user
-    password: morales_2024
+    password: ${DB_PASSWORD}          # Usar variable de entorno en producción
 
 app:
   jwt:
-    secret: tu-secret-key-muy-segura-de-al-menos-256-bits
-    expiration: 86400000
-    refresh-expiration: 604800000
+    secret: ${JWT_SECRET}             # Mínimo 256 bits, aleatorio
+    expiration: 86400000              # 24 horas (ms)
+    refresh-expiration: 604800000     # 7 días (ms)
+  cors:
+    allowed-origins: http://localhost:5173
 ```
 
 ### Frontend
 
-Crear archivo `.env.local`:
+Crear archivo `.env.local` (no subir al repositorio):
 
 ```env
 VITE_API_URL=http://localhost:8080/api
 ```
 
-## 📡 API Endpoints
+## 📡 API Endpoints Principales
 
 ### Autenticación
-- `POST /api/auth/login` - Iniciar sesión
-- `POST /api/auth/refresh` - Refrescar token
-- `POST /api/auth/logout` - Cerrar sesión
+- `POST /api/auth/login` — Iniciar sesión
+- `POST /api/auth/refresh` — Refrescar access token
+- `POST /api/auth/logout` — Cerrar sesión
 
-### Productos
-- `GET /api/products` - Listar productos
-- `POST /api/products` - Crear producto
-- `PUT /api/products/{id}` - Actualizar producto
-- `DELETE /api/products/{id}` - Eliminar producto
+### Mesas
+- `GET /api/tables` — Listar mesas
+- `POST /api/tables/{id}/open` — Abrir mesa
+- `POST /api/tables/{id}/add-items` — Agregar productos (con prioridad opcional)
+- `POST /api/tables/{id}/pay` — Pagar mesa
 
-### Facturas
-- `GET /api/invoices` - Listar facturas
-- `POST /api/invoices` - Crear factura
-- `GET /api/invoices/{id}` - Obtener factura
+### Cocina
+- `GET /api/kitchen/orders/grouped` — Pedidos agrupados por lote (SSE-ready)
+- `PUT /api/kitchen/orders/{detailId}/status` — Actualizar estado de ítem
+- `GET /api/sse/events` — Stream SSE de eventos en tiempo real
 
-*(Documentación completa disponible en Swagger: `http://localhost:8080/swagger-ui.html`)*
+### Productos / Inventario / Facturas
+- `GET|POST|PUT|DELETE /api/products`
+- `GET|POST /api/inventory/product/{id}/add`
+- `GET /api/invoices` — Historial de facturas
+
+*(Documentación Swagger disponible en: `http://localhost:8080/swagger-ui.html`)*
+
+## 🖨️ Impresión Térmica
+
+El sistema usa `printInvoice.ts` — una utilidad centralizada para impresoras térmicas de **58mm**:
+
+- CSS optimizado: `@page { size: 58mm auto; margin: 0 }`
+- Fuente monoespaciada Courier New para alineación de columnas
+- Soporte para: factura normal, pre-cuenta, cargo de servicio y domicilio
+- Cierre automático de ventana tras imprimir
+
+Todos los módulos (POS, Mesas, Historial de Facturas) usan la misma utilidad para garantizar consistencia visual.
+
+## ⚡ Tiempo Real (SSE)
+
+El módulo de Cocina y las notificaciones usan **Server-Sent Events**:
+
+- El frontend se suscribe a `/api/sse/events?token={jwt}`
+- El backend emite eventos al crear pedidos, actualizar estados y al pagar mesas
+- El hook `useSseEvents` maneja reconexión automática cada 5 segundos
+
+## 🔒 Seguridad
+
+- Autenticación JWT con access token (24h) + refresh token (7d)
+- `@PreAuthorize` en cada endpoint sensible del backend
+- Cierre automático de sesión en el frontend cuando el JWT expira (`useTokenExpiry`)
+- Contraseñas hasheadas con BCrypt
+- CORS configurado para orígenes específicos
+- Permisos granulares por rol almacenados en JSONB
 
 ## 🎨 Personalización del Tema
 
-El sistema usa un tema con degradados morados. Para personalizar:
+El tema es completamente dinámico desde la página de Configuración:
 
-1. Editar `front-emy/tailwind.config.js` para colores
-2. Editar `front-emy/src/shared/styles/globals.css` para estilos globales
-3. Usar la página de Configuración para cambios dinámicos
+- Color primario, secundario, fondo, tarjetas y sidebar
+- Los colores se aplican como variables CSS en tiempo real sin recargar
+- Se persisten en la base de datos y se cargan al iniciar sesión
 
 ## 📦 Despliegue en Producción
 
 ### Backend
 
 ```bash
-# Compilar JAR
 mvn clean package -DskipTests
-
-# Ejecutar JAR
-java -jar target/morales-pos-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+java -jar target/pos-morales-1.0.0.jar \
+  --spring.profiles.active=prod \
+  --DB_PASSWORD=tu_password \
+  --JWT_SECRET=tu_secret_256bits
 ```
 
 ### Frontend
 
 ```bash
-# Generar build de producción
 npm run build
+# Servir la carpeta dist/ con Nginx, Apache o cualquier CDN
+```
 
-# Los archivos estarán en dist/
+### Variables de entorno recomendadas en producción
+
+```bash
+DB_PASSWORD=password_seguro_aleatorio
+JWT_SECRET=cadena_aleatoria_minimo_64_caracteres
+CORS_ORIGINS=https://tu-dominio.com
 ```
 
 ## 🧪 Testing
 
 ```bash
 # Backend
-cd back-mor
-mvn test
+cd back-mor && mvn test
 
-# Frontend
-cd front-emy
-npm run test
+# Frontend (type-check)
+cd front-emy && npm run build
 ```
 
 ## 📄 Licencia
@@ -222,5 +289,9 @@ Desarrollado por el equipo de Sistema POS Morales.
 
 ---
 
-**Versión**: 1.0.0  
-**Última actualización**: Enero 2025
+**Versión**: 1.1.0  
+**Última actualización**: Febrero 2026
+
+### Historial de cambios recientes
+- **v1.1.0**: Módulo de Cocina con SSE, pedidos por lote y prioridad; módulo de Mesas con zonas dinámicas; roles MESERO y COCINERO; impresión térmica unificada 58mm; cierre automático de sesión; permisos SUPERVISOR en productos/inventario/categorías; módulo Promociones en gestión de roles.
+- **v1.0.0**: POS, Productos, Inventario, Facturas, Clientes, Reportes, Usuarios, Roles, Configuración.

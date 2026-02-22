@@ -70,14 +70,14 @@ public class ProductController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<ProductResponse>> create(@Valid @RequestBody CreateProductRequest request) {
         ProductResponse created = productService.create(request);
         return ResponseEntity.ok(ApiResponse.success(created, "Producto creado exitosamente"));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<ProductResponse>> update(
             @PathVariable Long id, 
             @Valid @RequestBody UpdateProductRequest request) {
@@ -86,7 +86,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         productService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Producto eliminado exitosamente"));

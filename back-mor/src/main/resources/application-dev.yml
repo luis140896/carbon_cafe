@@ -1,11 +1,27 @@
+# ============================================================
+# Perfil de DESARROLLO LOCAL
+# Este archivo SÍ se puede subir a Git porque solo contiene
+# configuración de desarrollo, no credenciales de producción.
+# Las credenciales reales se pasan como variables de entorno.
+# ============================================================
+
 spring:
+  datasource:
+    # Credenciales de desarrollo local (sobreescriben application.yml)
+    password: ${DB_PASSWORD:morales_2024}
+
   jpa:
     show-sql: false
     hibernate:
       ddl-auto: validate
 
+app:
+  jwt:
+    # Secret de desarrollo local (sobreescribe application.yml)
+    secret: ${JWT_SECRET:MoralesPOS2024SecretKeyForJWTTokenGenerationMustBe256BitsLong!}
+
 logging:
   level:
-    com.morales.pos: INFO
+    com.morales.pos: DEBUG
     org.hibernate.SQL: INFO
     org.hibernate.type.descriptor.sql.BasicBinder: INFO

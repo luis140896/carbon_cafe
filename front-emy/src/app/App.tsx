@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
+import { useTokenExpiry } from '@/core/hooks/useTokenExpiry'
 import { RootState, AppDispatch } from './store'
 import { fetchSettings } from '@/modules/settings/store/settingsSlice'
 import MainLayout from '@/shared/components/layout/MainLayout'
@@ -52,6 +53,9 @@ const hexToHSL = (hex: string): { h: number; s: number; l: number } => {
 function App() {
   const dispatch = useDispatch<AppDispatch>()
   const { isAuthenticated } = useSelector((state: RootState) => state.auth)
+
+  // Cierre automático de sesión cuando el token JWT expira
+  useTokenExpiry()
   const { theme } = useSelector((state: RootState) => state.settings)
 
   // Fetch settings from backend when authenticated

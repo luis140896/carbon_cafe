@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +30,7 @@ public class TableService {
     private final InvoiceRepository invoiceRepository;
     private final InvoiceDetailRepository invoiceDetailRepository;
     private final KitchenOrderService kitchenOrderService;
+    private final KitchenOrderRepository kitchenOrderRepository;
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
@@ -395,12 +397,26 @@ public class TableService {
         table.setStatus(TableStatus.DISPONIBLE);
         tableRepository.save(table);
 
-        // Mark all kitchen items as ENTREGADO
-        if (savedInvoice.getDetails() != null) {
+        // Mark all kitchen items as ENTREGADO (InvoiceDetail + KitchenOrder)
+        if (savedInvoice.getDetails() != null && !savedInvoice.getDetails().isEmpty()) {
+            List<Long> detailIds = savedInvoice.getDetails().stream()
+                    .map(InvoiceDetail::getId)
+                    .collect(Collectors.toList());
+
+            // Update InvoiceDetail kitchen status
             for (InvoiceDetail d : savedInvoice.getDetails()) {
                 d.setKitchenStatus(KitchenStatus.ENTREGADO);
             }
             invoiceRepository.save(savedInvoice);
+
+            // Update KitchenOrder status so they disappear from kitchen display
+            List<KitchenOrder> kitchenOrders = kitchenOrderRepository.findByInvoiceDetailIdIn(detailIds);
+            for (KitchenOrder ko : kitchenOrders) {
+                ko.setStatus(KitchenStatus.ENTREGADO);
+            }
+            if (!kitchenOrders.isEmpty()) {
+                kitchenOrderRepository.saveAll(kitchenOrders);
+            }
         }
 
         log.info("Mesa #{} pagada - Total: {} - Método: {}",

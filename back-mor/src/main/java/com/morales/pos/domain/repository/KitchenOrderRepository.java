@@ -31,6 +31,10 @@ public interface KitchenOrderRepository extends JpaRepository<KitchenOrder, Long
     // Find by invoice detail
     Optional<KitchenOrder> findByInvoiceDetailId(Long invoiceDetailId);
 
+    // Find all kitchen orders for a list of invoice detail IDs (used when paying a table)
+    @Query("SELECT ko FROM KitchenOrder ko WHERE ko.invoiceDetail.id IN :detailIds")
+    List<KitchenOrder> findByInvoiceDetailIdIn(@Param("detailIds") List<Long> detailIds);
+
     // Get max sequence number for a table
     @Query("SELECT COALESCE(MAX(ko.sequenceNumber), 0) FROM KitchenOrder ko WHERE ko.table.id = :tableId")
     Integer findMaxSequenceNumberByTableId(@Param("tableId") Long tableId);

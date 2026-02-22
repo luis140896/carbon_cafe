@@ -47,7 +47,7 @@ public class InventoryController {
     }
 
     @PostMapping("/product/{productId}/add")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<InventoryResponse>> addStock(
             @PathVariable Long productId,
             @RequestParam BigDecimal quantity,
@@ -60,7 +60,7 @@ public class InventoryController {
     }
 
     @PostMapping("/product/{productId}/remove")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<InventoryResponse>> removeStock(
             @PathVariable Long productId,
             @RequestParam BigDecimal quantity,
@@ -73,7 +73,7 @@ public class InventoryController {
     }
 
     @PutMapping("/product/{productId}/limits")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<InventoryResponse>> updateStockLimits(
             @PathVariable Long productId,
             @RequestParam BigDecimal minStock,

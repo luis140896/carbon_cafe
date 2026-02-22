@@ -42,14 +42,14 @@ public class CategoryController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<CategoryResponse>> create(@Valid @RequestBody CreateCategoryRequest request) {
         CategoryResponse created = categoryService.create(request);
         return ResponseEntity.ok(ApiResponse.success(created, "Categoría creada exitosamente"));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<CategoryResponse>> update(
             @PathVariable Long id, 
             @Valid @RequestBody UpdateCategoryRequest request) {
@@ -58,14 +58,14 @@ public class CategoryController {
     }
 
     @PutMapping("/reorder")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<Void>> reorder(@Valid @RequestBody ReorderCategoriesRequest request) {
         categoryService.reorder(request.getCategoryIds());
         return ResponseEntity.ok(ApiResponse.success(null, "Orden de categorías actualizado"));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'INVENTARIO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'INVENTARIO')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         categoryService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Categoría eliminada exitosamente"));

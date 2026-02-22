@@ -86,9 +86,16 @@ public class InvoiceService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Crea una venta directa desde el módulo POS.
+     * Flujo: validar stock → generar número → construir cabecera → procesar líneas → calcular totales → guardar.
+     */
     @Transactional
     public InvoiceResponse createSale(CreateSaleRequest request, User user) {
-        // Validar stock antes de procesar
+
+        // ── 1. PRE-VALIDACIÓN DE STOCK ──────────────────────────────────────────
+        // Antes de crear nada, verificamos que haya stock suficiente para TODOS
+        // los productos. Si alguno falla, se lanza excepción y no se guarda nada.
         for (CreateSaleRequest.SaleDetailRequest detail : request.getDetails()) {
             Inventory inventory = inventoryService.findEntityByProductId(detail.getProductId());
             if (inventory.getQuantity().compareTo(detail.getQuantity()) < 0) {
@@ -100,22 +107,29 @@ public class InvoiceService {
             }
         }
 
+        // ── 2. NÚMERO DE FACTURA ────────────────────────────────────────────────
+        // Genera un número único con formato V{MMDD}-{secuencia}, ej: V0221-0003
         String invoiceNumber = generateInvoiceNumber();
 
+        // ── 3. CLIENTE (OPCIONAL) ───────────────────────────────────────────────
+        // Si no se especifica cliente, la venta queda como "Cliente General"
         Customer customer = null;
         if (request.getCustomerId() != null) {
             customer = customerRepository.findById(request.getCustomerId())
                     .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado"));
         }
 
+        // ── 4. CABECERA DE FACTURA ──────────────────────────────────────────────
+        // Se guarda primero la cabecera para obtener el ID y poder asociar detalles.
+        // Estado COMPLETADA y pago PAGADO porque el POS cobra en el momento.
         Invoice invoice = Invoice.builder()
                 .invoiceNumber(invoiceNumber)
                 .invoiceType(InvoiceType.VENTA)
                 .customer(customer)
-                .user(user)
+                .user(user)                                          // cajero que realiza la venta
                 .paymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()))
                 .discountPercent(request.getDiscountPercent())
-                .amountReceived(request.getAmountReceived())
+                .amountReceived(request.getAmountReceived())         // dinero entregado por el cliente
                 .notes(request.getNotes())
                 .status(InvoiceStatus.COMPLETADA)
                 .paymentStatus(PaymentStatus.PAGADO)
@@ -123,6 +137,8 @@ public class InvoiceService {
 
         Invoice savedInvoice = invoiceRepository.save(invoice);
 
+        // ── 5. LÍNEAS DE DETALLE ────────────────────────────────────────────────
+        // Acumuladores para calcular totales al final del bucle
         BigDecimal subtotal = BigDecimal.ZERO;
         BigDecimal taxAmount = BigDecimal.ZERO;
 
@@ -130,29 +146,34 @@ public class InvoiceService {
             Product product = productRepository.findById(detailRequest.getProductId())
                     .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado: " + detailRequest.getProductId()));
 
+            // Construir línea de detalle con snapshot del nombre y precio al momento de la venta
             InvoiceDetail detail = InvoiceDetail.builder()
                     .invoice(savedInvoice)
                     .product(product)
-                    .productName(product.getName())
+                    .productName(product.getName())                  // snapshot: nombre al momento de venta
                     .quantity(detailRequest.getQuantity())
-                    .unitPrice(detailRequest.getUnitPrice())
-                    .costPrice(product.getCostPrice())
+                    .unitPrice(detailRequest.getUnitPrice())         // precio enviado desde el frontend
+                    .costPrice(product.getCostPrice())               // costo para cálculo de margen
                     .discountAmount(detailRequest.getDiscountAmount() != null ? detailRequest.getDiscountAmount() : BigDecimal.ZERO)
-                    .notes(detailRequest.getNotes())
-                    .kitchenStatus(KitchenStatus.ENTREGADO)
+                    .notes(detailRequest.getNotes())                 // exigencias/notas del cliente
+                    .kitchenStatus(KitchenStatus.ENTREGADO)          // POS directo: ya se entrega en caja
                     .build();
 
+            // Subtotal de línea = (precio × cantidad) − descuento por ítem
             BigDecimal lineSubtotal = detail.getUnitPrice().multiply(detail.getQuantity()).subtract(detail.getDiscountAmount());
+            // Impuesto de línea = subtotal × tasa de impuesto del producto (en %)
             BigDecimal lineTax = lineSubtotal.multiply(product.getTaxRate().divide(BigDecimal.valueOf(100)));
 
             detail.setSubtotal(lineSubtotal);
             detail.setTaxAmount(lineTax);
 
+            // Acumular en totales de factura
             subtotal = subtotal.add(lineSubtotal);
             taxAmount = taxAmount.add(lineTax);
 
             invoiceDetailRepository.save(detail);
 
+            // Descontar stock inmediatamente al registrar la venta
             inventoryService.removeStock(
                     product.getId(),
                     detail.getQuantity(),
@@ -161,30 +182,36 @@ public class InvoiceService {
             );
         }
 
+        // ── 6. CÁLCULO DE TOTALES ───────────────────────────────────────────────
+        // Descuento global sobre el subtotal acumulado (porcentaje aplicado al total)
         BigDecimal discountAmount = request.getDiscountPercent() != null && request.getDiscountPercent().compareTo(BigDecimal.ZERO) > 0
                 ? subtotal.multiply(request.getDiscountPercent().divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP))
                 : BigDecimal.ZERO;
 
+        // Base sobre la que se aplica cargo de servicio y domicilio
         BigDecimal afterDiscount = subtotal.add(taxAmount).subtract(discountAmount);
 
-        // Service charge (optional, e.g. 10%)
+        // Cargo de servicio (ej: 10% de propina/servicio, opcional)
         BigDecimal serviceChargePercent = request.getServiceChargePercent() != null ? request.getServiceChargePercent() : BigDecimal.ZERO;
         BigDecimal serviceChargeAmount = BigDecimal.ZERO;
         if (serviceChargePercent.compareTo(BigDecimal.ZERO) > 0) {
             serviceChargeAmount = afterDiscount.multiply(serviceChargePercent).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
         }
 
-        // Delivery charge (domicilio)
+        // Cargo de domicilio (monto fijo, opcional)
         BigDecimal deliveryChargeAmount = request.getDeliveryChargeAmount() != null ? request.getDeliveryChargeAmount() : BigDecimal.ZERO;
 
+        // ── 7. PERSISTIR TOTALES ────────────────────────────────────────────────
         savedInvoice.setSubtotal(subtotal);
         savedInvoice.setTaxAmount(taxAmount);
         savedInvoice.setDiscountAmount(discountAmount);
         savedInvoice.setServiceChargePercent(serviceChargePercent);
         savedInvoice.setServiceChargeAmount(serviceChargeAmount);
         savedInvoice.setDeliveryChargeAmount(deliveryChargeAmount);
+        // Total final = (subtotal + impuestos − descuento) + servicio + domicilio
         savedInvoice.setTotal(afterDiscount.add(serviceChargeAmount).add(deliveryChargeAmount));
 
+        // Calcular cambio (vuelto) si el cliente pagó más del total
         if (request.getAmountReceived() != null) {
             savedInvoice.setChangeAmount(request.getAmountReceived().subtract(savedInvoice.getTotal()));
         }

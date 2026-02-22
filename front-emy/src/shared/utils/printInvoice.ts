@@ -1,16 +1,31 @@
 /**
- * Utilidad reutilizable para impresión de facturas en térmica 58mm.
- * Resuelve: papel en blanco, márgenes excesivos, páginas extra.
+ * Utilidad reutilizable para impresión de facturas en impresora térmica 58mm.
+ *
+ * Problemas que resuelve respecto a window.print() genérico:
+ *  - Papel en blanco al final: @page { margin: 0 } + height auto en body
+ *  - Márgenes excesivos del navegador: se anulan con @page y body padding mínimo
+ *  - Páginas extra vacías: overflow: hidden en @media print
+ *  - Colores que no imprimen: -webkit-print-color-adjust: exact
+ *
+ * Uso:
+ *   import { printInvoice } from '@/shared/utils/printInvoice'
+ *   printInvoice(invoiceObject)                    // factura normal
+ *   printInvoice(invoiceObject, { isPreBill: true }) // pre-cuenta
  */
 
+// ── Formateadores de datos ──────────────────────────────────────────────────
+
+/** Formatea un número como moneda colombiana (COP) sin decimales. Ej: 15000 → $15.000 */
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value || 0)
 
+/** Convierte una fecha ISO a formato legible en español. Ej: "2026-02-21T23:00:00" → "21/02/2026, 11:00 p. m." */
 const formatDate = (dateStr: string) => {
   const date = new Date(dateStr)
   return date.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
+/** Traduce el código de método de pago al texto visible en el ticket. */
 const getPaymentMethodLabel = (method: string) => {
   switch (method) {
     case 'EFECTIVO': return 'Efectivo'
@@ -23,6 +38,10 @@ const getPaymentMethodLabel = (method: string) => {
   }
 }
 
+// ── Tipos ──────────────────────────────────────────────────────────────────
+
+/** Estructura mínima que necesita printInvoice para generar el ticket.
+ *  Compatible con InvoiceResponse del backend y con objetos construidos manualmente (pre-cuenta). */
 interface PrintableInvoice {
   invoiceNumber: string
   createdAt: string
@@ -42,15 +61,19 @@ interface PrintableInvoice {
   changeAmount?: number
 }
 
+/** Opciones de impresión. isPreBill=true muestra banner "PRE-CUENTA" y omite datos de pago. */
 interface PrintOptions {
   isPreBill?: boolean
 }
 
+// ── CSS térmico ─────────────────────────────────────────────────────────────
 /**
  * CSS optimizado para impresoras térmicas 58mm.
- * - @page sin márgenes para evitar páginas vacías
- * - @media print fuerza el ancho correcto
- * - body height auto para que el contenido determine el largo del ticket
+ * - @page { size: 58mm auto } → papel de ancho fijo, largo variable según contenido
+ * - margin: 0 en @page → elimina márgenes del navegador que dejan hoja en blanco
+ * - overflow: hidden en @media print → evita scroll que genera páginas extra
+ * - font-family Courier New → monoespaciado para alineación de columnas
+ * - font-weight 600 global → compensa la tinta diluida de impresoras térmicas
  */
 const thermalCSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -104,15 +127,25 @@ const thermalCSS = `
   .cut-line { text-align: center; margin-top: 10px; font-size: 9px; color: #000000 !important; }
 `
 
+// ── Función principal ───────────────────────────────────────────────────────
+
+/**
+ * Abre una ventana emergente con el HTML del ticket y lanza window.print().
+ * La ventana se cierra automáticamente después de imprimir (onafterprint)
+ * o tras 3 segundos como fallback para navegadores que no soportan onafterprint.
+ */
 export function printInvoice(inv: PrintableInvoice, options: PrintOptions = {}) {
+  // Leer nombre de empresa desde configuración guardada en localStorage
   const settings = JSON.parse(localStorage.getItem('pos_settings') || '{}')
   const companyName = settings?.company?.companyName || 'Mi Empresa'
   const { isPreBill = false } = options
 
+  // Generar filas de productos: "cantidad x nombre" alineado con subtotal a la derecha
   const itemsHtml = (inv.details || []).map((d) => {
     return `<div class="item"><span>${d.quantity} x ${d.productName}</span><span>${formatCurrency(d.subtotal)}</span></div>`
   }).join('')
 
+  // Banner de pre-cuenta solo si se solicita (no es factura fiscal)
   const preBillBanner = isPreBill ? '<div class="pre-bill-banner">*** PRE-CUENTA ***</div>' : ''
 
   const html = `<!DOCTYPE html>

@@ -15,6 +15,7 @@ type ModuleKey =
   | 'customers'
   | 'tables'
   | 'kitchen'
+  | 'promotions'
   | 'reports'
   | 'users'
   | 'roles'
@@ -29,6 +30,7 @@ const MODULE_PERMISSIONS: Record<ModuleKey, { label: string; color: string; perm
   customers: { label: 'Clientes', color: 'bg-pink-100 text-pink-700', permissions: ['customers.view', 'customers.create', 'customers.edit'] },
   tables: { label: 'Mesas', color: 'bg-orange-100 text-orange-700', permissions: ['tables.view', 'tables.open', 'tables.add_items', 'tables.pay', 'tables.add_notes'] },
   kitchen: { label: 'Cocina', color: 'bg-red-100 text-red-700', permissions: ['kitchen.view', 'kitchen.update_status'] },
+  promotions: { label: 'Promociones', color: 'bg-yellow-100 text-yellow-700', permissions: ['promotions.view', 'promotions.create', 'promotions.edit', 'promotions.delete'] },
   reports: { label: 'Reportes', color: 'bg-cyan-100 text-cyan-700', permissions: ['reports.view', 'reports.export'] },
   users: { label: 'Usuarios', color: 'bg-gray-100 text-gray-700', permissions: ['users.view', 'users.manage'] },
   roles: { label: 'Roles', color: 'bg-violet-100 text-violet-700', permissions: ['roles.view', 'roles.create', 'roles.edit', 'roles.delete'] },
