@@ -1,0 +1,197 @@
+# ========================================
+# SISTEMA POS MORALES - .gitignore
+# ========================================
+
+# ========================================
+# BACKEND (back-mor) - Java/Spring Boot
+# ========================================
+
+# Compiled class files
+*.class
+
+# Log files
+*.log
+logs/
+
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven
+back-mor/target/
+back-mor/.mvn/wrapper/maven-wrapper.jar
+back-mor/pom.xml.tag
+back-mor/pom.xml.releaseBackup
+back-mor/pom.xml.versionsBackup
+back-mor/pom.xml.next
+back-mor/release.properties
+
+# Gradle (si decides usarlo)
+back-mor/.gradle/
+back-mor/build/
+back-mor/out/
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# IDE - Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# IDE - NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# IDE - VS Code
+.vscode/
+*.code-workspace
+
+# Spring Boot
+back-mor/*.pid
+
+# ========================================
+# FRONTEND (front-emy) - React/Node
+# ========================================
+
+# Dependencies
+front-emy/node_modules/
+node_modules/
+
+# Build output
+front-emy/dist/
+front-emy/build/
+
+# Vite
+front-emy/.vite/
+
+# Cache
+front-emy/.cache/
+.eslintcache
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ========================================
+# ENVIRONMENT & SECRETS
+# ========================================
+
+# Environment files (NUNCA subir a Git)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+back-mor/src/main/resources/application-local.yml
+back-mor/src/main/resources/application-secrets.yml
+
+# ========================================
+# OPERATING SYSTEM
+# ========================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+
+# ========================================
+# UPLOADS & GENERATED FILES
+# ========================================
+
+# Uploaded images/files
+uploads/
+back-mor/uploads/
+front-emy/public/uploads/
+
+# Generated reports (output files, not source code)
+generated-reports/
+*.pdf
+*.xlsx
+!docs/*.pdf
+
+# ========================================
+# DATABASE
+# ========================================
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# PostgreSQL dumps
+*.sql.gz
+*.dump
+
+# ========================================
+# TESTING
+# ========================================
+
+# Coverage
+coverage/
+front-emy/coverage/
+back-mor/jacoco/
+
+# Test results
+test-results/
+*.test-result
+
+# ========================================
+# DOCKER
+# ========================================
+
+# Docker (keep Dockerfile, ignore generated)
+docker-compose.override.yml
+
+# ========================================
+# CREDENTIALS & TEST DATA (NEVER push to Git)
+# ========================================
+passwords.txt
+test_login.json
+
+# ========================================
+# MISC
+# ========================================
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak
+*.backup
+
+# Archives (except for deployment)
+*.7z
