@@ -196,8 +196,6 @@ public class TableService {
             throw new IllegalStateException("La sesión no tiene una factura asociada");
         }
 
-        BigDecimal subtotal = invoice.getSubtotal() != null ? invoice.getSubtotal() : BigDecimal.ZERO;
-        BigDecimal taxAmount = invoice.getTaxAmount() != null ? invoice.getTaxAmount() : BigDecimal.ZERO;
         Integer batchSequence = kitchenOrderService.getNextSequenceNumberForTable(session.getRestaurantTable().getId());
         LocalDateTime batchOrderTime = LocalDateTime.now();
         boolean isPriorityBatch = Boolean.TRUE.equals(request.getPriority());
@@ -224,31 +222,52 @@ public class TableService {
 
             BigDecimal discountAmt = item.getDiscountAmount() != null ? item.getDiscountAmount() : BigDecimal.ZERO;
 
-            InvoiceDetail detail = InvoiceDetail.builder()
-                    .invoice(invoice)
-                    .product(product)
-                    .productName(product.getName())
-                    .quantity(item.getQuantity())
-                    .unitPrice(item.getUnitPrice())
-                    .costPrice(product.getCostPrice())
-                    .discountAmount(discountAmt)
-                    .notes(item.getNotes())
-                    .build();
+            // Check if this product already exists in the active invoice — if so, merge quantities
+            java.util.Optional<InvoiceDetail> existingDetailOpt =
+                    invoiceDetailRepository.findByInvoiceIdAndProductId(invoice.getId(), product.getId());
 
-            BigDecimal lineSubtotal = detail.getUnitPrice().multiply(detail.getQuantity()).subtract(discountAmt);
-            BigDecimal lineTax = lineSubtotal.multiply(product.getTaxRate().divide(BigDecimal.valueOf(100)));
+            InvoiceDetail savedDetail;
+            if (existingDetailOpt.isPresent()) {
+                // Merge: increment quantity on the existing line
+                InvoiceDetail existing = existingDetailOpt.get();
+                BigDecimal newQty = existing.getQuantity().add(item.getQuantity());
+                existing.setQuantity(newQty);
 
-            detail.setSubtotal(lineSubtotal);
-            detail.setTaxAmount(lineTax);
+                BigDecimal lineSubtotal = existing.getUnitPrice().multiply(newQty).subtract(existing.getDiscountAmount());
+                BigDecimal lineTax = lineSubtotal.multiply(product.getTaxRate().divide(BigDecimal.valueOf(100)));
+                existing.setSubtotal(lineSubtotal);
+                existing.setTaxAmount(lineTax);
 
-            subtotal = subtotal.add(lineSubtotal);
-            taxAmount = taxAmount.add(lineTax);
+                // Append notes if provided
+                if (item.getNotes() != null && !item.getNotes().isBlank()) {
+                    String prevNotes = existing.getNotes() != null ? existing.getNotes() + " | " : "";
+                    existing.setNotes(prevNotes + item.getNotes());
+                }
 
-            // Save detail first to get ID
-            InvoiceDetail savedDetail = invoiceDetailRepository.save(detail);
-            invoice.addDetail(savedDetail);
+                savedDetail = invoiceDetailRepository.save(existing);
+            } else {
+                // New product line
+                InvoiceDetail detail = InvoiceDetail.builder()
+                        .invoice(invoice)
+                        .product(product)
+                        .productName(product.getName())
+                        .quantity(item.getQuantity())
+                        .unitPrice(item.getUnitPrice())
+                        .costPrice(product.getCostPrice())
+                        .discountAmount(discountAmt)
+                        .notes(item.getNotes())
+                        .build();
 
-            // Create kitchen order for this detail
+                BigDecimal lineSubtotal = detail.getUnitPrice().multiply(detail.getQuantity()).subtract(discountAmt);
+                BigDecimal lineTax = lineSubtotal.multiply(product.getTaxRate().divide(BigDecimal.valueOf(100)));
+                detail.setSubtotal(lineSubtotal);
+                detail.setTaxAmount(lineTax);
+
+                savedDetail = invoiceDetailRepository.save(detail);
+                invoice.addDetail(savedDetail);
+            }
+
+            // Create kitchen order for this batch (always, even on merge — cocina necesita saber del nuevo pedido)
             try {
                 kitchenOrderService.createKitchenOrder(
                         savedDetail,
@@ -265,13 +284,17 @@ public class TableService {
             // Deduct stock immediately
             inventoryService.removeStock(
                     product.getId(),
-                    detail.getQuantity(),
+                    item.getQuantity(),
                     "Mesa #" + session.getRestaurantTable().getTableNumber() + " - " + invoice.getInvoiceNumber(),
                     user
             );
         }
 
-        // Update invoice totals
+        // Recalculate totals from all details (handles both new items and merged items correctly)
+        List<InvoiceDetail> allDetails = invoiceDetailRepository.findByInvoiceId(invoice.getId());
+        BigDecimal subtotal = allDetails.stream().map(InvoiceDetail::getSubtotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal taxAmount = allDetails.stream().map(InvoiceDetail::getTaxAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+
         invoice.setSubtotal(subtotal);
         invoice.setTaxAmount(taxAmount);
         invoice.setTotal(subtotal.add(taxAmount).subtract(

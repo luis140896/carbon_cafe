@@ -2,7 +2,7 @@ import api from './axiosInstance'
 import { Product, PaginatedResponse } from '@/types'
 
 export const productService = {
-  getAll: (page = 0, size = 20) => 
+  getAll: (page = 0, size = 500) => 
     api.get<PaginatedResponse<Product>>(`/products?page=${page}&size=${size}`),
   
   getActive: () => api.get<Product[]>('/products/active'),

@@ -15,6 +15,9 @@ public interface InvoiceDetailRepository extends JpaRepository<InvoiceDetail, Lo
 
     List<InvoiceDetail> findByInvoiceId(Long invoiceId);
 
+    @Query("SELECT d FROM InvoiceDetail d WHERE d.invoice.id = :invoiceId AND d.product.id = :productId")
+    java.util.Optional<InvoiceDetail> findByInvoiceIdAndProductId(@Param("invoiceId") Long invoiceId, @Param("productId") Long productId);
+
     @Query("SELECT d FROM InvoiceDetail d WHERE d.product.id = :productId ORDER BY d.createdAt DESC")
     List<InvoiceDetail> findByProductIdOrderByCreatedAtDesc(@Param("productId") Long productId);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import {
   Plus, X, Users, Clock, Search, Loader2, CreditCard, Banknote,
@@ -83,9 +83,9 @@ const TablesPage = () => {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Dynamic configs
-  const [availableZones] = useState<string[]>(loadTableZones())
-  const [statusColors] = useState(loadStatusColors())
+  // Dynamic configs — recalculate on each mount to pick up localStorage changes from TableSettingsPage
+  const availableZones = useMemo(() => loadTableZones(), [])
+  const statusColors = useMemo(() => loadStatusColors(), [])
 
   // Filters
   const [zoneFilter, setZoneFilter] = useState<string | null>(null)
@@ -846,6 +846,33 @@ const TablesPage = () => {
               <div className="p-4 border-t bg-gray-50 space-y-2">
                 <button
                   onClick={() => {
+                    if (!activeSession.invoice) return
+                    const preBillData = {
+                      invoiceNumber: activeSession.invoiceNumber || '',
+                      createdAt: activeSession.openedAt || new Date().toISOString(),
+                      customerName: activeSession.customerName || 'Cliente General',
+                      userName: activeSession.openedByName || '',
+                      details: (activeSession.invoice.details || []).map((d: any) => ({
+                        quantity: d.quantity,
+                        productName: d.productName,
+                        subtotal: d.subtotal,
+                        notes: d.notes,
+                      })),
+                      subtotal: activeSession.invoice.subtotal || 0,
+                      discountAmount: activeSession.invoice.discountAmount || 0,
+                      taxAmount: activeSession.invoice.taxAmount || 0,
+                      total: activeSession.invoice.total || 0,
+                    }
+                    printInvoice(preBillData as any, { isPreBill: true })
+                  }}
+                  disabled={!activeSession.invoice?.details?.length}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <Printer size={16} />
+                  Pre-Factura
+                </button>
+                <button
+                  onClick={() => {
                     setShowPayModal(true)
                     setAmountReceived(String(activeSession.total || 0))
                   }}
@@ -1051,18 +1078,18 @@ const TablesPage = () => {
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                  <div className="flex flex-col gap-1.5">
                     {filteredProducts.map(product => (
                       <button
                         key={product.id}
                         onClick={() => addProductToList(product)}
-                        className="flex items-center justify-between p-3 rounded-xl hover:bg-primary-50 active:scale-95 transition-all text-left border border-gray-100 hover:border-primary-200"
+                        className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-primary-50 active:scale-[0.99] transition-all text-left border border-gray-100 hover:border-primary-200 bg-white"
                       >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-gray-800 truncate">{product.name}</p>
-                          <p className="text-xs text-gray-500">{product.code}</p>
+                        <div className="min-w-0 flex-1 pr-3">
+                          <p className="text-sm font-semibold text-gray-800 leading-snug">{product.name}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">{product.code}</p>
                         </div>
-                        <span className="text-sm font-semibold text-primary-600 ml-3 flex-shrink-0">
+                        <span className="text-sm font-bold text-primary-600 flex-shrink-0 bg-primary-50 px-2.5 py-1 rounded-lg">
                           {formatCurrency(product.salePrice)}
                         </span>
                       </button>

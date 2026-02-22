@@ -1261,18 +1261,26 @@ const POSPage = () => {
           </button>
           {/* Table selector */}
           {tables.length > 0 && (
-            <div className="relative mt-2">
+            <div className="relative mt-3">
               <button
                 onClick={() => setShowTableSelector(!showTableSelector)}
-                className={`flex items-center gap-2 text-sm transition-colors w-full ${
+                className={`flex items-center gap-2 w-full px-3 py-2.5 rounded-xl border-2 transition-all text-sm font-medium ${
                   selectedTableId
-                    ? 'text-primary-600 font-medium'
-                    : 'text-gray-500 hover:text-primary-600'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 shadow-sm'
+                    : 'border-dashed border-gray-300 bg-gray-50 text-gray-500 hover:border-primary-400 hover:bg-primary-50 hover:text-primary-600'
                 }`}
               >
-                <UtensilsCrossed size={16} />
-                <span>{selectedTable ? `Mesa #${selectedTable.tableNumber} - ${selectedTable.name}` : 'Sin mesa (venta directa)'}</span>
-                <span className="text-xs text-primary-500">(cambiar)</span>
+                <UtensilsCrossed size={16} className={selectedTableId ? 'text-primary-600' : 'text-gray-400'} />
+                <span className="flex-1 text-left">
+                  {selectedTable ? `Mesa #${selectedTable.tableNumber} — ${selectedTable.name}` : 'Asignar mesa (opcional)'}
+                </span>
+                {selectedTableId && (
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                    selectedTable?.status === 'DISPONIBLE' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                  }`}>
+                    {selectedTable?.status === 'DISPONIBLE' ? 'Libre' : 'Ocupada'}
+                  </span>
+                )}
               </button>
               {showTableSelector && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto">

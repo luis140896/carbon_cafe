@@ -446,75 +446,27 @@ const ReportsPage = () => {
       ) : (
         <>
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-            <div className="card">
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center shadow-soft flex-shrink-0">
-                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-gray-500 truncate">Ventas Totales</p>
-                  <p className="text-sm sm:text-base lg:text-xl font-bold text-gray-800 truncate">{formatCurrency(salesSummary?.totalSales || 0)}</p>
-                </div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 flex items-center justify-center shadow-soft flex-shrink-0">
-                  <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-gray-500 truncate">Transacciones</p>
-                  <p className="text-sm sm:text-base lg:text-xl font-bold text-gray-800">{(salesSummary as any)?.salesCount || (salesSummary as any)?.totalTransactions || 0}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+            {[
+              { label: 'Ventas Totales', value: formatCurrency(salesSummary?.totalSales || 0), icon: <DollarSign className="w-5 h-5 text-white" />, color: 'from-green-500 to-green-600' },
+              { label: 'Transacciones', value: String((salesSummary as any)?.salesCount || (salesSummary as any)?.totalTransactions || 0), icon: <BarChart3 className="w-5 h-5 text-white" />, color: 'from-primary-500 to-primary-600' },
+              { label: 'Ticket Promedio', value: formatCurrency(salesSummary?.averageTicket || 0), icon: <TrendingUp className="w-5 h-5 text-white" />, color: 'from-blue-500 to-blue-600' },
+              { label: 'Ganancia Neta', value: formatCurrency(salesSummary?.grossProfit || salesSummary?.totalProfit || 0), icon: <DollarSign className="w-5 h-5 text-white" />, color: 'from-amber-500 to-amber-600' },
+              { label: 'Servicio (Propinas)', value: formatCurrency(totals?.serviceCharge || 0), icon: <DollarSign className="w-5 h-5 text-white" />, color: 'from-indigo-500 to-indigo-600' },
+              { label: 'Total Neto', value: formatCurrency((totals?.total || 0) - (totals?.serviceCharge || 0)), icon: <DollarSign className="w-5 h-5 text-white" />, color: 'from-emerald-500 to-emerald-600' },
+            ].map((stat) => (
+              <div key={stat.label} className="card p-3 sm:p-4">
+                <div className="flex items-start gap-3">
+                  <div className={`w-9 h-9 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center shadow-soft flex-shrink-0`}>
+                    {stat.icon}
+                  </div>
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="text-xs text-gray-500 leading-tight mb-1">{stat.label}</p>
+                    <p className="text-sm sm:text-base font-bold text-gray-800 break-words leading-tight">{stat.value}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="card">
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center shadow-soft flex-shrink-0">
-                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-gray-500 truncate">Ticket Promedio</p>
-                  <p className="text-sm sm:text-base lg:text-xl font-bold text-gray-800 truncate">{formatCurrency(salesSummary?.averageTicket || 0)}</p>
-                </div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 flex items-center justify-center shadow-soft flex-shrink-0">
-                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-gray-500 truncate">Ganancia Neta</p>
-                  <p className="text-sm sm:text-base lg:text-xl font-bold text-gray-800 truncate">{formatCurrency(salesSummary?.grossProfit || salesSummary?.totalProfit || 0)}</p>
-                </div>
-              </div>
-            </div>
-            {/* Servicio (Propinas) */}
-            <div className="card">
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 flex items-center justify-center shadow-soft flex-shrink-0">
-                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-gray-500 truncate">Servicio (Propinas)</p>
-                  <p className="text-sm sm:text-base lg:text-xl font-bold text-gray-800 truncate">{formatCurrency(totals?.serviceCharge || 0)}</p>
-                </div>
-              </div>
-            </div>
-            {/* Total Neto */}
-            <div className="card">
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 flex items-center justify-center shadow-soft flex-shrink-0">
-                  <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-white" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm text-gray-500 truncate">Total Neto</p>
-                  <p className="text-sm sm:text-base lg:text-xl font-bold text-gray-800 truncate">{formatCurrency((totals?.total || 0) - (totals?.serviceCharge || 0))}</p>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Inventory Summary */}
