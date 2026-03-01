@@ -76,6 +76,37 @@ public class KitchenOrderService {
     }
 
     /**
+     * When items are merged into an existing invoice detail, we cannot insert a new kitchen order because
+     * the invoice_detail_id column is unique. Instead we update the existing kitchen order (if any) and
+     * broadcast an event so cocina sepa que llegaron más unidades de ese mismo producto.
+     */
+    @Transactional
+    public void registerAdditionalItems(
+            InvoiceDetail invoiceDetail,
+            RestaurantTable table,
+            LocalDateTime orderTime,
+            Boolean isPriority,
+            String priorityReason) {
+        kitchenOrderRepository.findByInvoiceDetailId(invoiceDetail.getId()).ifPresentOrElse(order -> {
+            order.setOrderTime(orderTime != null ? orderTime : LocalDateTime.now());
+            if (Boolean.TRUE.equals(isPriority)) {
+                order.setIsUrgent(true);
+                order.setUrgencyReason(priorityReason);
+            }
+            kitchenOrderRepository.save(order);
+
+            sseService.broadcastToRoles("order_increment", Map.of(
+                    "type", "ORDER_INCREMENT",
+                    "tableId", table.getId(),
+                    "tableName", table.getName(),
+                    "orderId", order.getId(),
+                    "productName", invoiceDetail.getProductName(),
+                    "newQuantity", invoiceDetail.getQuantity()
+            ), "COCINERO", "ADMIN", "SUPERVISOR");
+        }, () -> createKitchenOrder(invoiceDetail, table, orderTime, null, isPriority, priorityReason));
+    }
+
+    /**
      * Get all active orders (not ENTREGADO) grouped by table
      */
     @Transactional(readOnly = true)

@@ -51,7 +51,7 @@ app:
     refresh-token-expiration: 604800000  # 7 días
   
   cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5175,http://localhost:5176,http://localhost:5178,http://localhost:5179,https://customized-jesse-intro-weed.trycloudflare.com}
+    allowed-origins: ${CORS_ORIGINS:http://localhost:5173,http://localhost:5175,http://localhost:5176,http://localhost:5178,http://localhost:5179,https://initially-welcome-applicable-nutrition.trycloudflare.com}
     allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
     allowed-headers: "*"
     allow-credentials: true

@@ -34,6 +34,7 @@ public class TableService {
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
+    private final InventoryRepository inventoryRepository;
     private final SseService sseService;
 
     // ==================== TABLE CRUD ====================
@@ -212,13 +213,14 @@ public class TableService {
                 throw new IllegalArgumentException("El producto '" + product.getName() + "' no está activo");
             }
 
-            // Validate stock
-            Inventory inventory = inventoryService.findEntityByProductId(product.getId());
-            if (inventory.getQuantity().compareTo(item.getQuantity()) < 0) {
-                throw new IllegalArgumentException(
-                        String.format("Stock insuficiente para %s. Disponible: %s, Solicitado: %s",
-                                product.getName(), inventory.getQuantity(), item.getQuantity()));
-            }
+            // Validate stock (skip if product has no inventory record)
+            inventoryRepository.findByProductId(product.getId()).ifPresent(inventory -> {
+                if (inventory.getQuantity().compareTo(item.getQuantity()) < 0) {
+                    throw new IllegalArgumentException(
+                            String.format("Stock insuficiente para %s. Disponible: %s, Solicitado: %s",
+                                    product.getName(), inventory.getQuantity(), item.getQuantity()));
+                }
+            });
 
             BigDecimal discountAmt = item.getDiscountAmount() != null ? item.getDiscountAmount() : BigDecimal.ZERO;
 
@@ -233,8 +235,10 @@ public class TableService {
                 BigDecimal newQty = existing.getQuantity().add(item.getQuantity());
                 existing.setQuantity(newQty);
 
-                BigDecimal lineSubtotal = existing.getUnitPrice().multiply(newQty).subtract(existing.getDiscountAmount());
-                BigDecimal lineTax = lineSubtotal.multiply(product.getTaxRate().divide(BigDecimal.valueOf(100)));
+                BigDecimal discount = existing.getDiscountAmount() != null ? existing.getDiscountAmount() : BigDecimal.ZERO;
+                BigDecimal taxRate = product.getTaxRate() != null ? product.getTaxRate() : BigDecimal.ZERO;
+                BigDecimal lineSubtotal = existing.getUnitPrice().multiply(newQty).subtract(discount);
+                BigDecimal lineTax = lineSubtotal.multiply(taxRate.divide(BigDecimal.valueOf(100)));
                 existing.setSubtotal(lineSubtotal);
                 existing.setTaxAmount(lineTax);
 
@@ -245,6 +249,15 @@ public class TableService {
                 }
 
                 savedDetail = invoiceDetailRepository.save(existing);
+
+                // Notify kitchen that quantities increased for this detail
+                kitchenOrderService.registerAdditionalItems(
+                        savedDetail,
+                        session.getRestaurantTable(),
+                        batchOrderTime,
+                        isPriorityBatch,
+                        priorityReason
+                );
             } else {
                 // New product line
                 InvoiceDetail detail = InvoiceDetail.builder()
@@ -258,27 +271,28 @@ public class TableService {
                         .notes(item.getNotes())
                         .build();
 
+                BigDecimal taxRate = product.getTaxRate() != null ? product.getTaxRate() : BigDecimal.ZERO;
                 BigDecimal lineSubtotal = detail.getUnitPrice().multiply(detail.getQuantity()).subtract(discountAmt);
-                BigDecimal lineTax = lineSubtotal.multiply(product.getTaxRate().divide(BigDecimal.valueOf(100)));
+                BigDecimal lineTax = lineSubtotal.multiply(taxRate.divide(BigDecimal.valueOf(100)));
                 detail.setSubtotal(lineSubtotal);
                 detail.setTaxAmount(lineTax);
 
                 savedDetail = invoiceDetailRepository.save(detail);
                 invoice.addDetail(savedDetail);
-            }
 
-            // Create kitchen order for this batch (always, even on merge — cocina necesita saber del nuevo pedido)
-            try {
-                kitchenOrderService.createKitchenOrder(
-                        savedDetail,
-                        session.getRestaurantTable(),
-                        batchOrderTime,
-                        batchSequence,
-                        isPriorityBatch,
-                        priorityReason
-                );
-            } catch (Exception e) {
-                log.error("Error creating kitchen order for detail {}: {}", savedDetail.getId(), e.getMessage());
+                // Create kitchen order for brand new detail
+                try {
+                    kitchenOrderService.createKitchenOrder(
+                            savedDetail,
+                            session.getRestaurantTable(),
+                            batchOrderTime,
+                            batchSequence,
+                            isPriorityBatch,
+                            priorityReason
+                    );
+                } catch (Exception e) {
+                    log.error("Error creating kitchen order for detail {}: {}", savedDetail.getId(), e.getMessage());
+                }
             }
 
             // Deduct stock immediately
