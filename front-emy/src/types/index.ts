@@ -87,6 +87,9 @@ export interface Invoice {
   taxAmount: number
   discountAmount: number
   discountPercent: number
+  serviceChargePercent: number
+  serviceChargeAmount: number
+  deliveryChargeAmount: number
   total: number
   paymentMethod?: string
   paymentStatus: 'PAGADO' | 'PENDIENTE' | 'PARCIAL'

@@ -542,7 +542,8 @@ const InventoryPage = () => {
             No se encontraron productos
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px]">
             <thead>
               <tr className="bg-primary-50">
                 <th className="table-header">Código</th>
@@ -604,7 +605,8 @@ const InventoryPage = () => {
                 )
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
 

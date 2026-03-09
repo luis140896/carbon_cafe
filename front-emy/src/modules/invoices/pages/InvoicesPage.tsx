@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Eye, Filter, X, Loader2, Ban, Printer } from 'lucide-react'
+import { Search, Eye, Filter, X, Loader2, Ban, Printer, Banknote, CreditCard, Star, Truck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Button from '@/shared/components/ui/Button'
 import { invoiceService } from '@/core/api/invoiceService'
@@ -173,17 +173,19 @@ const InvoicesPage = () => {
             No se encontraron facturas
           </div>
         ) : (
-          <table className="w-full">
-            <thead>
-              <tr className="bg-primary-50">
-                <th className="table-header">N° Factura</th>
-                <th className="table-header">Cliente</th>
-                <th className="table-header">Fecha</th>
-                <th className="table-header text-right">Total</th>
-                <th className="table-header text-center">Estado</th>
-                <th className="table-header text-center">Acciones</th>
-              </tr>
-            </thead>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px]">
+              <thead>
+                <tr className="bg-primary-50">
+                  <th className="table-header">N° Factura</th>
+                  <th className="table-header">Cliente</th>
+                  <th className="table-header">Detalles</th>
+                  <th className="table-header">Fecha</th>
+                  <th className="table-header text-right">Total</th>
+                  <th className="table-header text-center">Estado</th>
+                  <th className="table-header text-center">Acciones</th>
+                </tr>
+              </thead>
             <tbody>
               {filteredInvoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-primary-50/50 transition-colors">
@@ -195,6 +197,34 @@ const InvoicesPage = () => {
                         <p className="text-xs text-gray-500">
                           {invoice.customer?.documentType || 'Doc'} {invoice.customer?.documentNumber || invoice.customerDocument}
                         </p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      {invoice.paymentMethod === 'EFECTIVO' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300">
+                          <Banknote size={12} />
+                          Efectivo
+                        </span>
+                      )}
+                      {invoice.paymentMethod && ['TRANSFERENCIA', 'TARJETA_CREDITO', 'TARJETA_DEBITO'].includes(invoice.paymentMethod) && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
+                          <CreditCard size={12} />
+                          {invoice.paymentMethod === 'TRANSFERENCIA' ? 'Transfer' : 'Tarjeta'}
+                        </span>
+                      )}
+                      {(invoice.serviceChargeAmount || 0) > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-300">
+                          <Star size={12} />
+                          +Servicio
+                        </span>
+                      )}
+                      {(invoice.deliveryChargeAmount || 0) > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300">
+                          <Truck size={12} />
+                          Domicilio
+                        </span>
                       )}
                     </div>
                   </td>
@@ -224,7 +254,8 @@ const InvoicesPage = () => {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
 

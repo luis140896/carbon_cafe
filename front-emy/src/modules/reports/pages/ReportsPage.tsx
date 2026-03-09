@@ -49,8 +49,28 @@ const ReportsPage = () => {
     }
   }
 
-  // Calculate totals for visual cards
-  const [totals, setTotals] = useState<any>({ total: 0, subtotal: 0, tax: 0, discount: 0, serviceCharge: 0, cash: 0, card: 0, other: 0 })
+  // Calculate totals for visual cards and detailed report
+  const [totals, setTotals] = useState<any>({
+    total: 0,
+    subtotal: 0,
+    tax: 0,
+    discount: 0,
+    serviceCharge: 0,
+    deliveryCharge: 0,
+    cash: {
+      total: 0,
+      withService: 0,
+      withoutService: 0,
+      serviceOnly: 0
+    },
+    transfer: {
+      total: 0,
+      withService: 0,
+      withoutService: 0,
+      serviceOnly: 0
+    },
+    other: 0
+  })
   
   useEffect(() => {
     const calculateTotals = async () => {
@@ -73,21 +93,53 @@ const ReportsPage = () => {
             const subtotal = safeNumber(inv.subtotal)
             const tax = safeNumber(inv.taxAmount)
             const discount = safeNumber(inv.discountAmount)
-            const serviceCharge = safeNumber(inv.serviceChargeAmount || 0)
+            const service = safeNumber(inv.serviceChargeAmount || 0)
+            const delivery = safeNumber(inv.deliveryChargeAmount || 0)
 
             acc.total += total
             acc.subtotal += subtotal
             acc.tax += tax
             acc.discount += discount
-            acc.serviceCharge += serviceCharge
+            acc.serviceCharge += service
+            acc.deliveryCharge += delivery
 
-            if (method === 'EFECTIVO') acc.cash += total
-            else if (['TRANSFERENCIA', 'TARJETA_CREDITO', 'TARJETA_DEBITO'].includes(method || '')) acc.card += total
-            else acc.other += total
+            if (method === 'EFECTIVO') {
+              acc.cash.total += total
+              acc.cash.withService += total
+              acc.cash.withoutService += (total - service)
+              acc.cash.serviceOnly += service
+            } else if (['TRANSFERENCIA', 'TARJETA_CREDITO', 'TARJETA_DEBITO'].includes(method || '')) {
+              acc.transfer.total += total
+              acc.transfer.withService += total
+              acc.transfer.withoutService += (total - service)
+              acc.transfer.serviceOnly += service
+            } else {
+              acc.other += total
+            }
 
             return acc
           },
-          { total: 0, subtotal: 0, tax: 0, discount: 0, serviceCharge: 0, cash: 0, card: 0, other: 0 }
+          {
+            total: 0,
+            subtotal: 0,
+            tax: 0,
+            discount: 0,
+            serviceCharge: 0,
+            deliveryCharge: 0,
+            cash: {
+              total: 0,
+              withService: 0,
+              withoutService: 0,
+              serviceOnly: 0
+            },
+            transfer: {
+              total: 0,
+              withService: 0,
+              withoutService: 0,
+              serviceOnly: 0
+            },
+            other: 0
+          }
         )
         
         setTotals(calculatedTotals)
@@ -163,21 +215,53 @@ const ReportsPage = () => {
           const subtotal = safeNumber((inv as any).subtotal)
           const tax = safeNumber((inv as any).taxAmount)
           const discount = safeNumber((inv as any).discountAmount)
-          const serviceCharge = safeNumber((inv as any).serviceChargeAmount || 0)
+          const service = safeNumber((inv as any).serviceChargeAmount || 0)
+          const delivery = safeNumber((inv as any).deliveryChargeAmount || 0)
 
           acc.total += total
           acc.subtotal += subtotal
           acc.tax += tax
           acc.discount += discount
-          acc.serviceCharge += serviceCharge
+          acc.serviceCharge += service
+          acc.deliveryCharge += delivery
 
-          if (isCash(method)) acc.cash += total
-          else if (isTransfer(method)) acc.card += total
-          else acc.other += total
+          if (isCash(method)) {
+            acc.cash.total += total
+            acc.cash.withService += total
+            acc.cash.withoutService += (total - service)
+            acc.cash.serviceOnly += service
+          } else if (isTransfer(method)) {
+            acc.transfer.total += total
+            acc.transfer.withService += total
+            acc.transfer.withoutService += (total - service)
+            acc.transfer.serviceOnly += service
+          } else {
+            acc.other += total
+          }
 
           return acc
         },
-        { total: 0, subtotal: 0, tax: 0, discount: 0, serviceCharge: 0, cash: 0, card: 0, other: 0 }
+        {
+          total: 0,
+          subtotal: 0,
+          tax: 0,
+          discount: 0,
+          serviceCharge: 0,
+          deliveryCharge: 0,
+          cash: {
+            total: 0,
+            withService: 0,
+            withoutService: 0,
+            serviceOnly: 0
+          },
+          transfer: {
+            total: 0,
+            withService: 0,
+            withoutService: 0,
+            serviceOnly: 0
+          },
+          other: 0
+        }
       )
 
       // Helper: convert hex color to ARGB (without #)
@@ -243,27 +327,37 @@ const ReportsPage = () => {
         ['REPORTE DE VENTAS'],
         [`Período: ${dateRange.start} a ${dateRange.end}`],
         [],
-        ['Concepto', 'Valor'],
-        ['Ventas Totales', safeNumber((salesSummary as any).totalSales)],
-        ['Transacciones', safeNumber((salesSummary as any).salesCount ?? (salesSummary as any).totalTransactions)],
-        ['Ticket Promedio', safeNumber((salesSummary as any).averageTicket)],
-        ['Costo Total', safeNumber((salesSummary as any).totalCost)],
-        ['Ganancia Neta', safeNumber((salesSummary as any).grossProfit ?? (salesSummary as any).totalProfit)],
-        ['Margen Ganancia %', safeNumber((salesSummary as any).profitMargin)],
-        ['Total Servicio (Propinas)', totals.serviceCharge],
-        ['Total Neto Dueño', totals.total - totals.serviceCharge],
+        ['SUBTOTALES Y TOTALES'],
+        ['Subtotal (antes de cargos)', totals.subtotal],
+        ['Impuestos', totals.tax],
+        ['Descuentos', -totals.discount],
+        ['Subtotal Neto', totals.subtotal + totals.tax - totals.discount],
+        [],
+        ['CARGOS ADICIONALES'],
+        ['Servicio/Propina Total', totals.serviceCharge],
+        ['  - En Efectivo', totals.cash.serviceOnly],
+        ['  - En Transferencia', totals.transfer.serviceOnly],
+        ['Domicilios Total', totals.deliveryCharge],
+        [],
+        ['TOTAL FACTURADO', totals.total],
+        [],
+        ['DISCRIMINACIÓN POR MÉTODO DE PAGO'],
+        ['EFECTIVO'],
+        ['  Total con servicio', totals.cash.withService],
+        ['  Total sin servicio', totals.cash.withoutService],
+        ['  Servicio (propina)', totals.cash.serviceOnly],
+        [],
+        ['TRANSFERENCIA'],
+        ['  Total con servicio', totals.transfer.withService],
+        ['  Total sin servicio', totals.transfer.withoutService],
+        ['  Servicio (propina)', totals.transfer.serviceOnly],
         [],
         ['CIERRE DE CAJA'],
-        ['Total Facturado', totals.total],
-        ['Subtotal', totals.subtotal],
-        ['Impuestos', totals.tax],
-        ['Descuentos', totals.discount],
-        ['Total Servicio (Propinas)', totals.serviceCharge],
-        ['Total Neto Dueño', totals.total - totals.serviceCharge],
-        [],
-        ['DESGLOSE POR MÉTODO DE PAGO'],
-        ['Total Efectivo', totals.cash],
-        ['Total Transferencia', totals.card],
+        ['Total Efectivo (incluye servicio)', totals.cash.total],
+        ['Total Transferencia (incluye servicio)', totals.transfer.total],
+        ['Total Domicilios', totals.deliveryCharge],
+        ['Total Servicio/Propina', totals.serviceCharge],
+        ['TOTAL NETO DUEÑO', totals.total - totals.serviceCharge],
       ]
 
       const wsResumen = XLSX.utils.aoa_to_sheet(resumenAoA)
@@ -271,9 +365,12 @@ const ReportsPage = () => {
         { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
         { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
         { s: { r: 2, c: 0 }, e: { r: 2, c: 1 } },
-        { s: { r: 12, c: 0 }, e: { r: 12, c: 1 } },
+        { s: { r: 4, c: 0 }, e: { r: 4, c: 1 } },
+        { s: { r: 10, c: 0 }, e: { r: 10, c: 1 } },
         { s: { r: 18, c: 0 }, e: { r: 18, c: 1 } },
-        { s: { r: 20, c: 0 }, e: { r: 20, c: 1 } },
+        { s: { r: 19, c: 0 }, e: { r: 19, c: 1 } },
+        { s: { r: 24, c: 0 }, e: { r: 24, c: 1 } },
+        { s: { r: 29, c: 0 }, e: { r: 29, c: 1 } },
       ]
 
       // Apply styles to Resumen
@@ -281,49 +378,42 @@ const ReportsPage = () => {
       if (wsResumen['A2']) wsResumen['A2'].s = { ...titleStyle, font: { ...titleStyle.font, sz: 13 } }
       if (wsResumen['A3']) wsResumen['A3'].s = { font: { italic: true, sz: 10, color: { rgb: '666666' } }, alignment: { horizontal: 'center' } }
 
-      // Header row (row 5)
-      if (wsResumen['A5']) wsResumen['A5'].s = headerStyle
-      if (wsResumen['B5']) wsResumen['B5'].s = headerStyle
-
-      // Section headers
-      if (wsResumen['A13']) wsResumen['A13'].s = sectionStyle
+      // Section headers (merged cells)
+      if (wsResumen['A5']) wsResumen['A5'].s = sectionStyle
+      if (wsResumen['A11']) wsResumen['A11'].s = sectionStyle
       if (wsResumen['A19']) wsResumen['A19'].s = sectionStyle
-      if (wsResumen['A21']) wsResumen['A21'].s = sectionStyle
+      if (wsResumen['A20']) wsResumen['A20'].s = sectionStyle
+      if (wsResumen['A25']) wsResumen['A25'].s = sectionStyle
+      if (wsResumen['A30']) wsResumen['A30'].s = sectionStyle
 
-      // Apply label and currency styles to data rows
-      const currencyRows = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22]
-      currencyRows.forEach(r => {
+      // Apply label and currency styles to all data rows
+      for (let r = 5; r <= 34; r++) {
         const labelRef = `A${r + 1}`
         const valRef = `B${r + 1}`
         if (wsResumen[labelRef]) wsResumen[labelRef].s = labelStyle
         if (wsResumen[valRef] && typeof wsResumen[valRef].v === 'number') {
-          // Transacciones y Margen Ganancia no van en formato moneda
-          if (r === 5 || r === 9) {
-            wsResumen[valRef].s = { ...labelStyle, alignment: { horizontal: 'right' } }
-          } else {
-            wsResumen[valRef].s = currencyStyle
-          }
+          wsResumen[valRef].s = currencyStyle
         }
-      })
+      }
 
       autoFitColumns(wsResumen, resumenAoA, 20)
       XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen')
 
       // === FACTURAS SHEET ===
-      const invoicesHeaders = ['Fecha', 'Número', 'Tipo', 'Estado', 'Cliente', 'Método Pago', 'Subtotal', 'Impuesto', 'Descuento', 'Total', 'Recibido', 'Cambio']
+      const invoicesHeaders = ['Fecha', 'Número', 'Cliente', 'Método Pago', 'Subtotal', 'Impuesto', 'Descuento', 'Servicio %', 'Servicio $', 'Domicilio $', 'Total', 'Estado']
       const invoicesData = invoices.map((inv) => [
         (inv as any).createdAt ? String((inv as any).createdAt).replace('T', ' ').slice(0, 19) : '',
         (inv as any).invoiceNumber || '',
-        (inv as any).invoiceType || '',
-        (inv as any).status || '',
-        (inv as any).customer?.fullName || '',
+        (inv as any).customer?.fullName || 'Cliente General',
         getPaymentMethodLabelLocal((inv as any).paymentMethod),
         safeNumber((inv as any).subtotal),
         safeNumber((inv as any).taxAmount),
         safeNumber((inv as any).discountAmount),
+        safeNumber((inv as any).serviceChargePercent || 0),
+        safeNumber((inv as any).serviceChargeAmount || 0),
+        safeNumber((inv as any).deliveryChargeAmount || 0),
         safeNumber((inv as any).total),
-        safeNumber((inv as any).amountReceived),
-        safeNumber((inv as any).changeAmount),
+        (inv as any).status || ''
       ])
       const invoicesAoA = [invoicesHeaders, ...invoicesData]
       const wsInvoices = XLSX.utils.aoa_to_sheet(invoicesAoA)
@@ -334,8 +424,8 @@ const ReportsPage = () => {
         if (wsInvoices[ref]) wsInvoices[ref].s = headerStyle
       })
 
-      // Apply currency format to monetary columns (6=Subtotal, 7=Impuesto, 8=Descuento, 9=Total, 10=Recibido, 11=Cambio)
-      const moneyCols = [6, 7, 8, 9, 10, 11]
+      // Apply currency format to monetary columns (4=Subtotal, 5=Impuesto, 6=Descuento, 8=Servicio$, 9=Domicilio$, 10=Total)
+      const moneyCols = [4, 5, 6, 8, 9, 10]
       invoicesData.forEach((_, rowIdx) => {
         moneyCols.forEach(colIdx => {
           const ref = XLSX.utils.encode_cell({ r: rowIdx + 1, c: colIdx })
@@ -467,6 +557,88 @@ const ReportsPage = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Payment Method Breakdown */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="card bg-gradient-to-br from-green-50 to-green-100 border-l-4 border-green-500">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center shadow-soft">
+                  <CreditCard className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-green-800">Efectivo</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(totals?.cash?.total || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Sin servicio:</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(totals?.cash?.withoutService || 0)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="text-gray-600">Propinas:</span>
+                  <span className="font-semibold text-amber-600">{formatCurrency(totals?.cash?.serviceOnly || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card bg-gradient-to-br from-blue-50 to-blue-100 border-l-4 border-blue-500">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center shadow-soft">
+                  <CreditCard className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-blue-800">Transferencia</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(totals?.transfer?.total || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Sin servicio:</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(totals?.transfer?.withoutService || 0)}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="text-gray-600">Propinas:</span>
+                  <span className="font-semibold text-amber-600">{formatCurrency(totals?.transfer?.serviceOnly || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card bg-gradient-to-br from-purple-50 to-purple-100 border-l-4 border-purple-500">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center shadow-soft">
+                  <Package className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-purple-800">Domicilios</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(totals?.deliveryCharge || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card bg-gradient-to-br from-emerald-50 to-emerald-100 border-l-4 border-emerald-500">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center shadow-soft">
+                  <DollarSign className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-emerald-800">Total Dueño</h3>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Neto:</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency((totals?.total || 0) - (totals?.serviceCharge || 0))}</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  (Total - Propinas)
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Inventory Summary */}
