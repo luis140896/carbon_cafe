@@ -6,9 +6,13 @@ spring:
     active: dev
   
   datasource:
-    url: jdbc:postgresql://localhost:5435/morales_pos
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5435/morales_pos}
     username: ${DB_USERNAME:morales_user}
     password: ${DB_PASSWORD:morales_2024}
+    hikari:
+      data-source-properties:
+        sslmode: ${DB_SSLMODE:prefer}
+        ssl: true
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -32,6 +36,9 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5435/morales_pos}
+    user: ${DB_USERNAME:morales_user}
+    password: ${DB_PASSWORD:morales_2024}
   
   servlet:
     multipart:
