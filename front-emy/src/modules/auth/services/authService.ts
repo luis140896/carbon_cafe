@@ -1,18 +1,15 @@
-import axios from 'axios'
+import api from '@/core/api/axiosInstance'
 
 export const authService = {
   login: async (credentials: { username: string; password: string }) => {
-    const response = await axios.post('/api/auth/login', credentials)
-    return response.data?.data ?? response.data
+    return api.post('/auth/login', credentials)
   },
 
   refreshToken: async (refreshToken: string) => {
-    const response = await axios.post('/api/auth/refresh', { refreshToken })
-    return response.data?.data ?? response.data
+    return api.post('/auth/refresh', { refreshToken })
   },
 
   logout: async () => {
-    const response = await axios.post('/api/auth/logout')
-    return response.data?.data ?? response.data
+    return api.post('/auth/logout')
   },
 }
