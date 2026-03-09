@@ -13,12 +13,11 @@ spring:
       data-source-properties:
         sslmode: ${DB_SSLMODE:prefer}
         ssl: true
-    driver-class-name: org.postgresql.Driver
-    hikari:
       maximum-pool-size: 10
       minimum-idle: 5
       idle-timeout: 300000
       connection-timeout: 20000
+    driver-class-name: org.postgresql.Driver
   
   jpa:
     hibernate:
@@ -46,7 +45,7 @@ spring:
       max-request-size: 10MB
 
 server:
-  port: 8080
+  port: ${PORT:8080}
   servlet:
     context-path: /api
 
