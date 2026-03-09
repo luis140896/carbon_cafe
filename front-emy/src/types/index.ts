@@ -178,6 +178,8 @@ export interface TableSession {
   total?: number
   itemCount?: number
   invoice?: Invoice
+  customerName?: string
+  customerPhone?: string
 }
 
 // ==================== Notifications ====================

@@ -10,7 +10,6 @@ import { categoryService } from '@/core/api/categoryService'
 import { customerService } from '@/core/api/customerService'
 import { invoiceService } from '@/core/api/invoiceService'
 import { tableService } from '@/core/api/tableService'
-import { promotionService, Promotion } from '@/core/api/promotionService'
 import { Product, Category, Customer, RestaurantTable } from '@/types'
 import { printInvoice } from '@/shared/utils/printInvoice'
 
@@ -461,8 +460,6 @@ interface PaymentModalProps {
   onConfirm: () => Promise<void>
   onPrintPreBill: () => void
   formatCurrency: (value: number) => string
-  items: Array<{ id: number; name: string; price: number; quantity: number; notes?: string }>
-  customerName: string
 }
 
 const PaymentModal = ({
@@ -486,8 +483,6 @@ const PaymentModal = ({
   onConfirm,
   onPrintPreBill,
   formatCurrency,
-  items,
-  customerName,
 }: PaymentModalProps) => {
   if (!show) return null
 
@@ -711,7 +706,6 @@ const POSPage = () => {
   const [includeDelivery, setIncludeDelivery] = useState(false)
   const [deliveryCharge, setDeliveryCharge] = useState(3000)
   const [totalDiscountPercent, setTotalDiscountPercent] = useState(0)
-  const [activePromotion, setActivePromotion] = useState<Promotion | null>(null)
 
   // Table selection for POS
   const [tables, setTables] = useState<RestaurantTable[]>([])
@@ -733,23 +727,7 @@ const POSPage = () => {
   useEffect(() => {
     fetchData()
     fetchTables()
-    fetchActivePromotion()
   }, [])
-
-  const fetchActivePromotion = async () => {
-    try {
-      const res = await promotionService.getToday()
-      if (res) {
-        setActivePromotion(res as Promotion)
-        // Sugerir aplicar promoción automáticamente si no hay descuento manual
-        if (totalDiscountPercent === 0) {
-          setTotalDiscountPercent((res as Promotion).discountPercent)
-        }
-      }
-    } catch {
-      // No promotion active today
-    }
-  }
 
   const normalizeProduct = (p: any): ProductWithCategory => {
     const categoryId = p?.category?.id ?? p?.categoryId ?? 0
@@ -943,11 +921,6 @@ const POSPage = () => {
     }
   }
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
-    return date.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-  }
-
   const selectedTable = tables.find(t => t.id === selectedTableId) || null
 
   // Send cart items to a table WITHOUT paying (save order and continue)
@@ -1056,16 +1029,6 @@ const POSPage = () => {
       toast.error(error.response?.data?.message || 'Error al procesar la venta')
     } finally {
       setProcessing(false)
-    }
-  }
-
-  const getPaymentMethodLabel = (method: string) => {
-    switch (method) {
-      case 'EFECTIVO': return 'Efectivo'
-      case 'TRANSFERENCIA': return 'Transferencia'
-      case 'TARJETA_CREDITO': return 'Tarjeta Crédito'
-      case 'TARJETA_DEBITO': return 'Tarjeta Débito'
-      default: return method
     }
   }
 
@@ -1470,8 +1433,6 @@ const POSPage = () => {
         onConfirm={handleConfirmSale}
         onPrintPreBill={handlePrintPreBill}
         formatCurrency={formatCurrency}
-        items={items}
-        customerName={customerName}
       />
 
       <CustomerSelectionModal
