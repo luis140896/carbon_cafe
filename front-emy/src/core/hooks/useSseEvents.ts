@@ -28,7 +28,10 @@ export const useSseEvents = (options: UseSseEventsOptions) => {
     if (!token) return
 
     // SSE no soporta headers custom, enviamos token como query param
-    const baseUrl = '/api/sse/events'
+    const baseUrl = (import.meta.env.VITE_SSE_URL || '/api/sse') + (import.meta.env.VITE_SSE_URL?.endsWith('/events') ? '' : '/events')
+    if (import.meta.env.DEV) {
+      console.log('[SSE] baseUrl =', baseUrl)
+    }
     const url = `${baseUrl}?token=${encodeURIComponent(token)}`
 
     const es = new EventSource(url)
