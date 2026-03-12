@@ -76,6 +76,16 @@ springdoc:
     path: /swagger-ui.html
     operationsSorter: method
 
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
 # Logging
 logging:
   level:
