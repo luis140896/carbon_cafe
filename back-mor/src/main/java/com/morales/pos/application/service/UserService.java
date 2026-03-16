@@ -5,6 +5,7 @@ import com.morales.pos.application.dto.request.UpdateUserRequest;
 import com.morales.pos.application.dto.response.UserResponse;
 import com.morales.pos.domain.entity.Role;
 import com.morales.pos.domain.entity.User;
+import com.morales.pos.domain.repository.InventoryMovementRepository;
 import com.morales.pos.domain.repository.RoleRepository;
 import com.morales.pos.domain.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -23,6 +24,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final InventoryMovementRepository inventoryMovementRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
@@ -100,7 +102,11 @@ public class UserService {
     public void delete(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado con ID: " + id));
-        
+
+        if (inventoryMovementRepository.existsByUserId(id)) {
+            throw new IllegalStateException("No puedes eliminar este usuario porque tiene movimientos de inventario asociados. Desactívalo en lugar de eliminarlo.");
+        }
+
         userRepository.delete(user);
         log.info("Usuario eliminado: {}", user.getUsername());
     }

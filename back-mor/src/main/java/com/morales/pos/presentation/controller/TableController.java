@@ -96,6 +96,16 @@ public class TableController {
         return ResponseEntity.ok(ApiResponse.success(session, "Productos agregados exitosamente"));
     }
 
+    @PatchMapping("/{id}/items/{detailId}/notes")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO')")
+    public ResponseEntity<ApiResponse<Void>> updateItemNotes(
+            @PathVariable Long id,
+            @PathVariable Long detailId,
+            @RequestBody Map<String, String> body) {
+        tableService.updateItemNotes(id, detailId, body.get("notes"));
+        return ResponseEntity.ok(ApiResponse.success(null, "Observación actualizada"));
+    }
+
     @DeleteMapping("/{id}/items/{detailId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO')")
     public ResponseEntity<ApiResponse<TableSessionResponse>> removeItem(

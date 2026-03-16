@@ -6,6 +6,8 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import java.util.TimeZone;
+
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableCaching
@@ -13,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class MoralesPosApplication {
 
     public static void main(String[] args) {
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Bogota"));
         SpringApplication.run(MoralesPosApplication.class, args);
     }
 }

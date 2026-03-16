@@ -22,6 +22,8 @@ public interface InventoryMovementRepository extends JpaRepository<InventoryMove
     @Query("SELECT m FROM InventoryMovement m WHERE m.user.id = :userId ORDER BY m.createdAt DESC")
     List<InventoryMovement> findByUserIdOrderByCreatedAtDesc(@Param("userId") Long userId);
 
+    boolean existsByUserId(Long userId);
+
     @Query("SELECT m FROM InventoryMovement m WHERE m.product.id = :productId AND m.createdAt BETWEEN :start AND :end ORDER BY m.createdAt DESC")
     List<InventoryMovement> findByProductIdAndDateRange(
             @Param("productId") Long productId,
