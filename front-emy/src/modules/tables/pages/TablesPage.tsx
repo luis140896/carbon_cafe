@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSelector } from 'react-redux'
 import {
   Plus, X, Users, Clock, Search, Loader2, CreditCard, Banknote,
-  Minus, Trash2, ChevronRight, UtensilsCrossed, Coffee, AlertCircle, Printer, User, UserPlus, Edit2, Truck, ShoppingCart
+  Minus, Trash2, ChevronRight, UtensilsCrossed, Coffee, AlertCircle, Printer, User, UserPlus, Edit2, Truck, ShoppingCart, Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { RootState } from '@/app/store'
@@ -136,6 +136,33 @@ const TablesPage = () => {
   const [includeDelivery, setIncludeDelivery] = useState(false)
   const [deliveryCharge, setDeliveryCharge] = useState(3000)
   const [totalDiscountPercent, setTotalDiscountPercent] = useState(0)
+
+  // Edit item notes
+  const [editingNotesDetailId, setEditingNotesDetailId] = useState<number | null>(null)
+  const [editNotesValue, setEditNotesValue] = useState('')
+
+  const handleUpdateNotes = async (detailId: number) => {
+    if (!selectedTable) return
+    try {
+      await tableService.updateItemNotes(selectedTable.id, detailId, editNotesValue)
+      setActiveSession(prev => {
+        if (!prev?.invoice?.details) return prev
+        return {
+          ...prev,
+          invoice: {
+            ...prev.invoice,
+            details: prev.invoice.details.map((d: InvoiceDetail) =>
+              d.id === detailId ? { ...d, notes: editNotesValue || undefined } : d
+            ),
+          },
+        } as TableSession
+      })
+      setEditingNotesDetailId(null)
+      toast.success('Observación actualizada')
+    } catch {
+      toast.error('Error al actualizar observación')
+    }
+  }
 
   // Create/Edit table form
   const [newTableNumber, setNewTableNumber] = useState('')
@@ -533,7 +560,7 @@ const TablesPage = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 mb-3 sm:mb-4 overflow-x-auto pb-1 flex-shrink-0">
+        <div className="flex gap-2 mb-3 sm:mb-4 overflow-x-auto pb-1 flex-shrink-0 scrollbar-x">
           <button
             onClick={() => setZoneFilter(null)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -755,8 +782,37 @@ const TablesPage = () => {
                               <p className="text-xs text-gray-500">
                                 {detail.quantity} x {formatCurrency(detail.unitPrice)}
                               </p>
-                              {detail.notes && (
-                                <p className="text-xs font-medium text-red-600 mt-0.5">⚠️ {detail.notes}</p>
+                              {editingNotesDetailId === detail.id ? (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={editNotesValue}
+                                    onChange={(e) => setEditNotesValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleUpdateNotes(detail.id)
+                                      if (e.key === 'Escape') setEditingNotesDetailId(null)
+                                    }}
+                                    className="flex-1 text-xs px-2 py-1 border border-primary-300 rounded-lg focus:ring-1 focus:ring-primary-400"
+                                    placeholder="Sin cebolla, término medio..."
+                                  />
+                                  <button onClick={() => handleUpdateNotes(detail.id)} className="p-1 rounded text-green-600 hover:bg-green-50">
+                                    <Check size={14} />
+                                  </button>
+                                  <button onClick={() => setEditingNotesDetailId(null)} className="p-1 rounded text-gray-400 hover:bg-gray-100">
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setEditingNotesDetailId(detail.id); setEditNotesValue(detail.notes || '') }}
+                                  className="flex items-center gap-1 mt-0.5 text-xs text-gray-400 hover:text-primary-600 transition-colors"
+                                >
+                                  <Edit2 size={11} />
+                                  {detail.notes
+                                    ? <span className="text-red-600 font-medium">⚠️ {detail.notes}</span>
+                                    : <span>Agregar observación</span>}
+                                </button>
                               )}
                             </div>
                             <div className="flex items-center gap-2">
@@ -1053,7 +1109,7 @@ const TablesPage = () => {
                       autoFocus
                     />
                   </div>
-                  <div className="overflow-x-auto mt-3 -mx-3 px-3 sm:-mx-4 sm:px-4">
+                  <div className="overflow-x-auto mt-3 -mx-3 px-3 sm:-mx-4 sm:px-4 scrollbar-x">
                     <div className="grid grid-flow-col auto-cols-max grid-rows-2 gap-2 pb-1">
                       <button
                         onClick={() => setSelectedCategory(null)}

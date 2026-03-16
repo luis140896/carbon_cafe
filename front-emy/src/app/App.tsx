@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux'
 import { useTokenExpiry } from '@/core/hooks/useTokenExpiry'
 import { RootState, AppDispatch } from './store'
 import { fetchSettings } from '@/modules/settings/store/settingsSlice'
+import { setUser } from '@/modules/auth/store/authSlice'
 import MainLayout from '@/shared/components/layout/MainLayout'
 import LoginPage from '@/modules/auth/pages/LoginPage'
 import DashboardPage from '@/modules/dashboard/pages/DashboardPage'
@@ -64,6 +65,16 @@ function App() {
       dispatch(fetchSettings())
     }
   }, [isAuthenticated, dispatch])
+
+  // Sincronizar permisos en Redux cuando el interceptor refresca el token inline
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const user = (e as CustomEvent).detail?.user
+      if (user) dispatch(setUser(user))
+    }
+    window.addEventListener('auth:userUpdated', handler)
+    return () => window.removeEventListener('auth:userUpdated', handler)
+  }, [dispatch])
 
   // Aplicar colores del tema dinámicamente
   useEffect(() => {

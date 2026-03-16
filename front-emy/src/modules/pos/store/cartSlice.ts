@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, createSelector, PayloadAction } from '@reduxjs/toolkit'
 
 export interface CartItem {
   id: number
@@ -102,21 +102,21 @@ export const {
   clearCart,
 } = cartSlice.actions
 
-export const selectCartTotal = (state: { cart: CartState }) => {
-  const subtotal = state.cart.items.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  )
-  const discountAmount =
-    state.cart.discountType === 'percent'
-      ? subtotal * (state.cart.discount / 100)
-      : state.cart.discount
-  return {
-    subtotal,
-    discountAmount,
-    total: subtotal - discountAmount,
-    itemCount: state.cart.items.reduce((count, item) => count + item.quantity, 0),
+export const selectCartTotal = createSelector(
+  (state: { cart: CartState }) => state.cart.items,
+  (state: { cart: CartState }) => state.cart.discount,
+  (state: { cart: CartState }) => state.cart.discountType,
+  (items, discount, discountType) => {
+    const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0)
+    const discountAmount =
+      discountType === 'percent' ? subtotal * (discount / 100) : discount
+    return {
+      subtotal,
+      discountAmount,
+      total: subtotal - discountAmount,
+      itemCount: items.reduce((count, item) => count + item.quantity, 0),
+    }
   }
-}
+)
 
 export default cartSlice.reducer

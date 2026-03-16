@@ -27,7 +27,7 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/', icon: LayoutDashboard, label: 'Dashboard', requiredPermissions: ['dashboard.view'] },
   { path: '/pos', icon: ShoppingCart, label: 'Punto de Venta', requiredPermissions: ['pos.sell'] },
   { path: '/tables', icon: UtensilsCrossed, label: 'Mesas', requiredPermissions: ['tables.view'] },
   { path: '/kitchen', icon: ChefHat, label: 'Cocina', requiredPermissions: ['kitchen.view'] },

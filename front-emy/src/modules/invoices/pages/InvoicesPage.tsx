@@ -173,7 +173,7 @@ const InvoicesPage = () => {
             No se encontraron facturas
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-x">
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="bg-primary-50">

@@ -60,7 +60,7 @@ const KitchenPage = () => {
 
   const getNextStatus = (current: string): string | null => {
     switch (current) {
-      case 'PENDIENTE': return 'EN_PREPARACION'
+      case 'PENDIENTE': return 'LISTO'
       case 'EN_PREPARACION': return 'LISTO'
       case 'LISTO': return 'ENTREGADO'
       default: return null
@@ -69,7 +69,7 @@ const KitchenPage = () => {
 
   const getNextStatusLabel = (current: string): string => {
     switch (current) {
-      case 'PENDIENTE': return 'Iniciar Preparación'
+      case 'PENDIENTE': return 'Marcar Listo'
       case 'EN_PREPARACION': return 'Marcar Listo'
       case 'LISTO': return 'Marcar Entregado'
       default: return ''
@@ -104,7 +104,7 @@ const KitchenPage = () => {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-4 animate-fade-in pb-4">
       {/* Encabezado */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -119,7 +119,7 @@ const KitchenPage = () => {
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Filtros */}
-          {['ALL', 'PENDIENTE', 'EN_PREPARACION', 'LISTO'].map((f) => (
+          {['ALL', 'PENDIENTE', 'LISTO'].map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -152,7 +152,7 @@ const KitchenPage = () => {
       )}
 
       {/* Grid de pedidos */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
         {filteredOrders.map((order) => {
           const elapsed = getElapsedMinutes(order.createdAt)
           const isPriority = order.isUrgent === true

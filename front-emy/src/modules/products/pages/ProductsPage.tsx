@@ -419,7 +419,7 @@ const ProductsPage = () => {
             No se encontraron productos
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-x">
             <table className="w-full min-w-[1000px]">
             <thead>
               <tr className="bg-primary-50">

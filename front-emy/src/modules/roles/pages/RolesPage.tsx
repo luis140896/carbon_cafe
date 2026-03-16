@@ -7,6 +7,7 @@ import { roleService, CreateRoleRequest } from '@/core/api/roleService'
 import { Role } from '@/types'
 
 type ModuleKey =
+  | 'dashboard'
   | 'pos'
   | 'products'
   | 'categories'
@@ -22,6 +23,7 @@ type ModuleKey =
   | 'settings'
 
 const MODULE_PERMISSIONS: Record<ModuleKey, { label: string; color: string; permissions: string[] }> = {
+  dashboard: { label: 'Dashboard', color: 'bg-teal-100 text-teal-700', permissions: ['dashboard.view'] },
   pos: { label: 'POS', color: 'bg-green-100 text-green-700', permissions: ['pos.sell', 'pos.discount', 'pos.void'] },
   products: { label: 'Productos', color: 'bg-blue-100 text-blue-700', permissions: ['products.view', 'products.create', 'products.edit', 'products.delete'] },
   categories: { label: 'Categorías', color: 'bg-indigo-100 text-indigo-700', permissions: ['categories.view', 'categories.create', 'categories.edit', 'categories.delete'] },

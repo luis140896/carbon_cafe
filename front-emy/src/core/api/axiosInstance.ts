@@ -36,9 +36,13 @@ axiosInstance.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken')
         if (refreshToken) {
           const response = await axios.post(`${baseURL}/auth/refresh`, { refreshToken })
-          const { accessToken } = response.data.data
+          const { accessToken, user } = response.data.data
 
           localStorage.setItem('accessToken', accessToken)
+          if (user) {
+            localStorage.setItem('user', JSON.stringify(user))
+            window.dispatchEvent(new CustomEvent('auth:userUpdated', { detail: { user } }))
+          }
           originalRequest.headers.Authorization = `Bearer ${accessToken}`
 
           return axiosInstance(originalRequest)

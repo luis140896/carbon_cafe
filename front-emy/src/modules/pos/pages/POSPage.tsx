@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, Loader2, User, UserPlus, Printer, Grid3X3, LayoutGrid, Grid2X2, UtensilsCrossed, ShoppingCart } from 'lucide-react'
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, X, Loader2, User, UserPlus, Printer, Grid3X3, LayoutGrid, Grid2X2, UtensilsCrossed, ShoppingCart, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { RootState } from '@/app/store'
 import { addItem, removeItem, incrementQuantity, decrementQuantity, clearCart, setCustomer, selectCartTotal, updateItemNotes } from '../store/cartSlice'
@@ -373,7 +373,7 @@ const CategoriesPanel = ({
         )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-soft p-2 sm:p-3 h-auto max-h-[120px] sm:max-h-[220px] overflow-y-auto overflow-x-auto w-full border border-gray-100">
+      <div className="bg-white rounded-2xl shadow-soft p-2 sm:p-3 h-auto max-h-[120px] sm:max-h-[220px] overflow-y-auto overflow-x-auto w-full border border-gray-100 scrollbar-x scrollbar-thin">
         <div className="flex flex-nowrap sm:flex-wrap gap-2 sm:gap-3 pb-1 sm:pb-3">
           {parentCategoryId !== null && (
             <button
@@ -1169,18 +1169,33 @@ const POSPage = () => {
         </div>
       </div>
 
-      {/* Mobile Cart FAB */}
-      <button
-        onClick={() => setShowMobileCart(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-40 w-14 h-14 bg-gradient-to-r from-primary-600 to-primary-700 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-      >
-        <ShoppingCart size={22} />
-        {itemCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[22px] h-[22px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
-            {itemCount}
-          </span>
-        )}
-      </button>
+      {/* Mobile minimizable cart bottom bar */}
+      {!showMobileCart && (
+        <button
+          onClick={() => setShowMobileCart(true)}
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-lg px-4 py-3 flex items-center justify-between active:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <ShoppingCart size={22} className="text-primary-600" />
+              {itemCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                  {itemCount}
+                </span>
+              )}
+            </div>
+            <span className="text-sm font-medium text-gray-700">
+              {itemCount === 0 ? 'Carrito vacío' : `${itemCount} producto${itemCount !== 1 ? 's' : ''}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            {itemCount > 0 && (
+              <span className="text-base font-bold text-primary-600">{formatCurrency(total)}</span>
+            )}
+            <ChevronRight size={18} className="text-gray-400 -rotate-90" />
+          </div>
+        </button>
+      )}
 
       {/* Mobile Cart Backdrop */}
       {showMobileCart && (
@@ -1189,12 +1204,12 @@ const POSPage = () => {
 
       {/* Right Panel - Cart */}
       <div className={`
-        ${showMobileCart ? 'translate-x-0' : 'translate-x-full'}
-        lg:translate-x-0
-        fixed right-0 top-0 h-full w-full sm:w-96 z-50
-        lg:relative lg:z-auto lg:h-auto
+        ${showMobileCart ? 'translate-y-0' : 'translate-y-full'}
+        lg:translate-y-0
+        fixed bottom-0 left-0 right-0 h-[85dvh] z-50
+        lg:relative lg:z-auto lg:h-auto lg:bottom-auto lg:left-auto lg:right-auto
         lg:w-96 flex-shrink-0 bg-white lg:rounded-2xl shadow-soft flex flex-col min-w-0
-        transition-transform duration-300
+        transition-transform duration-300 rounded-t-2xl
       `}>
         {/* Cart Header */}
         <div className="p-4 border-b border-primary-100">
@@ -1203,13 +1218,21 @@ const POSPage = () => {
               <ShoppingCart size={20} />
               Carrito
             </h2>
-            <button
-              onClick={() => setShowCustomerModal(true)}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors"
-            >
-              <User size={16} />
-              <span className="max-w-[120px] truncate">{customerName}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCustomerModal(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors"
+              >
+                <User size={16} />
+                <span className="max-w-[120px] truncate">{customerName}</span>
+              </button>
+              <button
+                onClick={() => setShowMobileCart(false)}
+                className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:bg-gray-100"
+              >
+                <ChevronRight size={18} className="rotate-90" />
+              </button>
+            </div>
           </div>
           <button 
             onClick={() => setShowCustomerModal(true)}

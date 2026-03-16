@@ -213,6 +213,7 @@ body {
 
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -222,5 +223,24 @@ body {
   .scrollbar-thin::-webkit-scrollbar-thumb {
     background-color: var(--primary-300);
     border-radius: 3px;
+  }
+
+  .scrollbar-x {
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-300) var(--primary-50);
+  }
+
+  .scrollbar-x::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .scrollbar-x::-webkit-scrollbar-track {
+    background: var(--primary-50);
+    border-radius: 2px;
+  }
+
+  .scrollbar-x::-webkit-scrollbar-thumb {
+    background-color: var(--primary-400);
+    border-radius: 2px;
   }
 }

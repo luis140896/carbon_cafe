@@ -64,6 +64,9 @@ export const tableService = {
 
   addItems: (id: number, request: AddTableItemsRequest) => api.post<TableSession>(`/tables/${id}/add-items`, request),
 
+  updateItemNotes: (id: number, detailId: number, notes: string) =>
+    api.patch<void>(`/tables/${id}/items/${detailId}/notes`, { notes }),
+
   removeItem: (id: number, detailId: number) => api.delete<TableSession>(`/tables/${id}/items/${detailId}`),
 
   payTable: (id: number, request: PayTableRequest) => api.post<Invoice>(`/tables/${id}/pay`, request),

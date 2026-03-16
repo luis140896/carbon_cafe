@@ -70,6 +70,10 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null
     },
+    setUser: (state, action: PayloadAction<any>) => {
+      state.user = action.payload
+      localStorage.setItem('user', JSON.stringify(action.payload))
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -96,6 +100,10 @@ const authSlice = createSlice({
         state.refreshToken = action.payload.refreshToken
         localStorage.setItem('accessToken', action.payload.accessToken)
         localStorage.setItem('refreshToken', action.payload.refreshToken)
+        if (action.payload.user) {
+          state.user = action.payload.user
+          localStorage.setItem('user', JSON.stringify(action.payload.user))
+        }
       })
       .addCase(refreshToken.rejected, (state) => {
         state.user = null
@@ -109,5 +117,5 @@ const authSlice = createSlice({
   },
 })
 
-export const { logout, clearError } = authSlice.actions
+export const { logout, clearError, setUser } = authSlice.actions
 export default authSlice.reducer
