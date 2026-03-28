@@ -30,7 +30,8 @@ public class SseService {
             emitter.send(SseEmitter.event()
                     .name("connected")
                     .data("{\"status\":\"connected\"}"));
-        } catch (IOException e) {
+        } catch (Exception e) {
+            log.warn("Failed to send initial SSE connection event: {}", e.getMessage());
             removeEmitter(emitter);
         }
 
@@ -44,7 +45,8 @@ public class SseService {
                 emitter.send(SseEmitter.event()
                         .name(eventName)
                         .data(data));
-            } catch (IOException e) {
+            } catch (Exception e) {
+                log.warn("Removing SSE emitter after failed send (event: {}): {}", eventName, e.getMessage());
                 removeEmitter(emitter);
             }
         }
@@ -68,7 +70,8 @@ public class SseService {
                     emitter.send(SseEmitter.event()
                             .name(eventName)
                             .data(data));
-                } catch (IOException e) {
+                } catch (Exception e) {
+                    log.warn("Removing SSE emitter for role {} after failed send (event: {}): {}", emitterRole, eventName, e.getMessage());
                     removeEmitter(emitter);
                 }
             }
