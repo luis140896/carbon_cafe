@@ -62,15 +62,19 @@ public class KitchenOrderService {
         log.info("Kitchen order created: Table {} - Sequence {} - Product: {}", 
                  table.getName(), nextSequence, invoiceDetail.getProductName());
 
-        // Emit SSE notification to kitchen
-        sseService.broadcastToRoles("new_order", Map.of(
-            "type", "NEW_ORDER",
-            "tableId", table.getId(),
-            "tableName", table.getName(),
-            "orderId", saved.getId(),
-            "productName", invoiceDetail.getProductName(),
-            "quantity", invoiceDetail.getQuantity()
-        ), "COCINERO", "ADMIN", "SUPERVISOR");
+        // Emit SSE notification to kitchen, but don't break the transaction if a client disconnects
+        try {
+            sseService.broadcastToRoles("new_order", Map.of(
+                    "type", "NEW_ORDER",
+                    "tableId", table.getId(),
+                    "tableName", table.getName(),
+                    "orderId", saved.getId(),
+                    "productName", invoiceDetail.getProductName(),
+                    "quantity", invoiceDetail.getQuantity()
+            ), "COCINERO", "ADMIN", "SUPERVISOR");
+        } catch (Exception e) {
+            log.warn("Failed to broadcast new kitchen order {}: {}", saved.getId(), e.getMessage());
+        }
 
         return saved;
     }
@@ -134,14 +138,18 @@ public class KitchenOrderService {
         KitchenOrder updated = kitchenOrderRepository.save(order);
         log.info("Kitchen order {} status updated: {} -> {}", orderId, oldStatus, newStatus);
 
-        // Emit SSE notification
-        sseService.broadcast("kitchen_update", Map.of(
-            "type", "STATUS_UPDATE",
-            "orderId", orderId,
-            "oldStatus", oldStatus.name(),
-            "newStatus", newStatus.name(),
-            "tableName", order.getTableName()
-        ));
+        // Emit SSE notification (ignore failures to avoid rolling back DB changes)
+        try {
+            sseService.broadcast("kitchen_update", Map.of(
+                    "type", "STATUS_UPDATE",
+                    "orderId", orderId,
+                    "oldStatus", oldStatus.name(),
+                    "newStatus", newStatus.name(),
+                    "tableName", order.getTableName()
+            ));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast kitchen update for order {}: {}", orderId, e.getMessage());
+        }
 
         return toDto(updated);
     }
@@ -160,13 +168,17 @@ public class KitchenOrderService {
         KitchenOrder updated = kitchenOrderRepository.save(order);
         log.info("Kitchen order {} marked as URGENT: {}", orderId, reason);
 
-        // Emit SSE notification
-        sseService.broadcast("urgent_order", Map.of(
-            "type", "URGENT_ORDER",
-            "orderId", orderId,
-            "tableName", order.getTableName(),
-            "reason", reason
-        ));
+        // Emit SSE notification (best-effort)
+        try {
+            sseService.broadcast("urgent_order", Map.of(
+                    "type", "URGENT_ORDER",
+                    "orderId", orderId,
+                    "tableName", order.getTableName(),
+                    "reason", reason
+            ));
+        } catch (Exception e) {
+            log.warn("Failed to broadcast urgent order {}: {}", orderId, e.getMessage());
+        }
 
         return toDto(updated);
     }
