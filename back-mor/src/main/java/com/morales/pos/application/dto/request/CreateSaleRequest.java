@@ -3,7 +3,6 @@ package com.morales.pos.application.dto.request;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -11,7 +10,6 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class CreateSaleRequest {
@@ -23,21 +21,27 @@ public class CreateSaleRequest {
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El descuento no puede ser negativo")
     @DecimalMax(value = "100.0", inclusive = true, message = "El descuento no puede exceder 100%")
-    @Builder.Default
     private BigDecimal discountPercent = BigDecimal.ZERO;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El cargo por servicio no puede ser negativo")
     @DecimalMax(value = "100.0", inclusive = true, message = "El cargo por servicio no puede exceder 100%")
-    @Builder.Default
     private BigDecimal serviceChargePercent = BigDecimal.ZERO;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "El cargo por servicio no puede ser negativo")
+    private BigDecimal serviceChargeAmount = BigDecimal.ZERO;
 
     @NotNull(message = "El monto recibido es requerido")
     @DecimalMin(value = "0.0", inclusive = true, message = "El monto recibido no puede ser negativo")
     private BigDecimal amountReceived;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El cargo por domicilio no puede ser negativo")
-    @Builder.Default
     private BigDecimal deliveryChargeAmount = BigDecimal.ZERO;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "El monto en efectivo no puede ser negativo")
+    private BigDecimal cashAmount = BigDecimal.ZERO;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "El monto en transferencia no puede ser negativo")
+    private BigDecimal transferAmount = BigDecimal.ZERO;
 
     @Size(max = 500, message = "Las notas no pueden exceder 500 caracteres")
     private String notes;
@@ -47,7 +51,6 @@ public class CreateSaleRequest {
     private List<SaleDetailRequest> details;
 
     @Data
-    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
     public static class SaleDetailRequest {
@@ -64,7 +67,6 @@ public class CreateSaleRequest {
         private BigDecimal unitPrice;
 
         @DecimalMin(value = "0.0", inclusive = true, message = "El descuento no puede ser negativo")
-        @Builder.Default
         private BigDecimal discountAmount = BigDecimal.ZERO;
 
         private String notes;

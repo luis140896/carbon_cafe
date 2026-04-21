@@ -95,6 +95,8 @@ export interface Invoice {
   paymentStatus: 'PAGADO' | 'PENDIENTE' | 'PARCIAL'
   amountReceived: number
   changeAmount: number
+  cashAmount?: number
+  transferAmount?: number
   status: 'COMPLETADA' | 'ANULADA' | 'PENDIENTE'
   notes?: string
   voidedBy?: number

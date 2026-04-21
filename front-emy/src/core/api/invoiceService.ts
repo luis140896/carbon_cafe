@@ -14,8 +14,11 @@ export interface CreateSaleRequest {
   paymentMethod: string
   discountPercent?: number
   serviceChargePercent?: number
+  serviceChargeAmount?: number
   deliveryChargeAmount?: number
   amountReceived: number
+  cashAmount?: number
+  transferAmount?: number
   notes?: string
   details: SaleDetailRequest[]
 }

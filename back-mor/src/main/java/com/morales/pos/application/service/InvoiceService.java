@@ -191,11 +191,17 @@ public class InvoiceService {
         // Base sobre la que se aplica cargo de servicio y domicilio
         BigDecimal afterDiscount = subtotal.add(taxAmount).subtract(discountAmount);
 
-        // Cargo de servicio (ej: 10% de propina/servicio, opcional)
+        // Cargo de servicio — si viene monto fijo lo usa directamente, si no calcula desde porcentaje
         BigDecimal serviceChargePercent = request.getServiceChargePercent() != null ? request.getServiceChargePercent() : BigDecimal.ZERO;
-        BigDecimal serviceChargeAmount = BigDecimal.ZERO;
-        if (serviceChargePercent.compareTo(BigDecimal.ZERO) > 0) {
+        BigDecimal fixedServiceAmount = request.getServiceChargeAmount() != null ? request.getServiceChargeAmount() : BigDecimal.ZERO;
+        BigDecimal serviceChargeAmount;
+        if (fixedServiceAmount.compareTo(BigDecimal.ZERO) > 0) {
+            serviceChargeAmount = fixedServiceAmount;
+            serviceChargePercent = BigDecimal.ZERO;
+        } else if (serviceChargePercent.compareTo(BigDecimal.ZERO) > 0) {
             serviceChargeAmount = afterDiscount.multiply(serviceChargePercent).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        } else {
+            serviceChargeAmount = BigDecimal.ZERO;
         }
 
         // Cargo de domicilio (monto fijo, opcional)
@@ -214,6 +220,14 @@ public class InvoiceService {
         // Calcular cambio (vuelto) si el cliente pagó más del total
         if (request.getAmountReceived() != null) {
             savedInvoice.setChangeAmount(request.getAmountReceived().subtract(savedInvoice.getTotal()));
+        }
+
+        // Pago mixto: guardar montos individuales si aplica
+        if (request.getCashAmount() != null && request.getCashAmount().compareTo(BigDecimal.ZERO) > 0) {
+            savedInvoice.setCashAmount(request.getCashAmount());
+        }
+        if (request.getTransferAmount() != null && request.getTransferAmount().compareTo(BigDecimal.ZERO) > 0) {
+            savedInvoice.setTransferAmount(request.getTransferAmount());
         }
 
         Invoice finalInvoice = invoiceRepository.save(savedInvoice);

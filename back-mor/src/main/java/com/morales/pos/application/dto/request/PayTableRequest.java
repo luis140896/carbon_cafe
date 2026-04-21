@@ -4,14 +4,12 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class PayTableRequest {
@@ -24,16 +22,22 @@ public class PayTableRequest {
     private BigDecimal amountReceived;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El descuento no puede ser negativo")
-    @Builder.Default
     private BigDecimal discountPercent = BigDecimal.ZERO;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El cargo por servicio no puede ser negativo")
-    @Builder.Default
     private BigDecimal serviceChargePercent = BigDecimal.ZERO;
 
+    @DecimalMin(value = "0.0", inclusive = true, message = "El cargo por servicio no puede ser negativo")
+    private BigDecimal serviceChargeAmount = BigDecimal.ZERO;
+
     @DecimalMin(value = "0.0", inclusive = true, message = "El cargo por domicilio no puede ser negativo")
-    @Builder.Default
     private BigDecimal deliveryChargeAmount = BigDecimal.ZERO;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "El monto en efectivo no puede ser negativo")
+    private BigDecimal cashAmount = BigDecimal.ZERO;
+
+    @DecimalMin(value = "0.0", inclusive = true, message = "El monto en transferencia no puede ser negativo")
+    private BigDecimal transferAmount = BigDecimal.ZERO;
 
     private String notes;
 }

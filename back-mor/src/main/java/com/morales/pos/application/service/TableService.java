@@ -379,9 +379,14 @@ public class TableService {
             invoice.setTotal(invoice.getSubtotal().add(invoice.getTaxAmount()).subtract(discountAmount));
         }
 
-        // Apply service charge if provided (e.g. 10%)
+        // Apply service charge — fixed amount takes priority over percent
         BigDecimal serviceChargePercent = request.getServiceChargePercent() != null ? request.getServiceChargePercent() : BigDecimal.ZERO;
-        if (serviceChargePercent.compareTo(BigDecimal.ZERO) > 0) {
+        BigDecimal fixedServiceAmt = request.getServiceChargeAmount() != null ? request.getServiceChargeAmount() : BigDecimal.ZERO;
+        if (fixedServiceAmt.compareTo(BigDecimal.ZERO) > 0) {
+            invoice.setServiceChargeAmount(fixedServiceAmt);
+            invoice.setServiceChargePercent(BigDecimal.ZERO);
+            invoice.setTotal(invoice.getTotal().add(fixedServiceAmt));
+        } else if (serviceChargePercent.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal serviceChargeAmount = invoice.getTotal()
                     .multiply(serviceChargePercent)
                     .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
@@ -403,6 +408,13 @@ public class TableService {
         invoice.setChangeAmount(request.getAmountReceived().subtract(invoice.getTotal()));
         invoice.setStatus(InvoiceStatus.COMPLETADA);
         invoice.setPaymentStatus(PaymentStatus.PAGADO);
+        // Pago mixto: guardar montos individuales
+        if (request.getCashAmount() != null && request.getCashAmount().compareTo(BigDecimal.ZERO) > 0) {
+            invoice.setCashAmount(request.getCashAmount());
+        }
+        if (request.getTransferAmount() != null && request.getTransferAmount().compareTo(BigDecimal.ZERO) > 0) {
+            invoice.setTransferAmount(request.getTransferAmount());
+        }
         if (request.getNotes() != null) {
             invoice.setNotes(request.getNotes());
         }

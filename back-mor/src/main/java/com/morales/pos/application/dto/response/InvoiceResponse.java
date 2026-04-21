@@ -46,6 +46,8 @@ public class InvoiceResponse {
     private String paymentStatus;
     private BigDecimal amountReceived;
     private BigDecimal changeAmount;
+    private BigDecimal cashAmount;
+    private BigDecimal transferAmount;
     
     // Status
     private String status;
@@ -84,6 +86,8 @@ public class InvoiceResponse {
                 .paymentStatus(invoice.getPaymentStatus() != null ? invoice.getPaymentStatus().name() : null)
                 .amountReceived(invoice.getAmountReceived())
                 .changeAmount(invoice.getChangeAmount())
+                .cashAmount(invoice.getCashAmount())
+                .transferAmount(invoice.getTransferAmount())
                 .status(invoice.getStatus() != null ? invoice.getStatus().name() : null)
                 .notes(invoice.getNotes())
                 .voidedAt(invoice.getVoidedAt())

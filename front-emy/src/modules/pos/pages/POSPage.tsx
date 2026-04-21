@@ -441,12 +441,14 @@ const CategoriesPanel = ({
 
 interface PaymentModalProps {
   show: boolean
-  paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA'
+  paymentMethod: 'EFECTIVO' | 'TRANSFERENCIA' | 'MIXTO'
   subtotal: number
   discountAmount: number
   total: number
   includeServiceCharge: boolean
   setIncludeServiceCharge: (value: boolean) => void
+  serviceChargeValue: number
+  setServiceChargeValue: (value: number) => void
   includeDelivery: boolean
   setIncludeDelivery: (value: boolean) => void
   deliveryCharge: number
@@ -455,6 +457,10 @@ interface PaymentModalProps {
   setTotalDiscountPercent: (value: number) => void
   amountReceived: string
   setAmountReceived: (value: string) => void
+  mixCashAmount: string
+  setMixCashAmount: (value: string) => void
+  mixTransferAmount: string
+  setMixTransferAmount: (value: string) => void
   processing: boolean
   onClose: () => void
   onConfirm: () => Promise<void>
@@ -470,6 +476,8 @@ const PaymentModal = ({
   total,
   includeServiceCharge,
   setIncludeServiceCharge,
+  serviceChargeValue,
+  setServiceChargeValue,
   includeDelivery,
   setIncludeDelivery,
   deliveryCharge,
@@ -478,6 +486,10 @@ const PaymentModal = ({
   setTotalDiscountPercent,
   amountReceived,
   setAmountReceived,
+  mixCashAmount,
+  setMixCashAmount,
+  mixTransferAmount,
+  setMixTransferAmount,
   processing,
   onClose,
   onConfirm,
@@ -486,16 +498,16 @@ const PaymentModal = ({
 }: PaymentModalProps) => {
   if (!show) return null
 
-  const serviceChargeAmount = includeServiceCharge ? total * 0.10 : 0
+  const serviceChargeAmount = includeServiceCharge ? serviceChargeValue : 0
   const deliveryAmount = includeDelivery ? deliveryCharge : 0
   const totalDiscountAmount = (total * totalDiscountPercent) / 100
   const finalTotal = total + serviceChargeAmount + deliveryAmount - totalDiscountAmount
 
-  const recalcAmount = (svc: boolean, dlv: boolean, dlvCharge: number, discPercent: number) => {
-    const svcAmt = svc ? total * 0.10 : 0
+  const recalcAmount = (svc: boolean, svcAmt: number, dlv: boolean, dlvCharge: number, discPercent: number) => {
+    const serviceAmt = svc ? svcAmt : 0
     const dlvAmt = dlv ? dlvCharge : 0
     const discAmt = (total * discPercent) / 100
-    setAmountReceived((total + svcAmt + dlvAmt - discAmt).toFixed(0))
+    setAmountReceived((total + serviceAmt + dlvAmt - discAmt).toFixed(0))
   }
 
   return (
@@ -503,7 +515,7 @@ const PaymentModal = ({
       <div className="modal-content p-6 animate-scale-in">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-gray-800">
-            Pago con {paymentMethod === 'EFECTIVO' ? 'Efectivo' : 'Transferencia'}
+            {paymentMethod === 'EFECTIVO' ? 'Pago con Efectivo' : paymentMethod === 'TRANSFERENCIA' ? 'Pago con Transferencia' : 'Pago Mixto (Efectivo + Transfer)'}
           </h3>
           <button
             onClick={onClose}
@@ -528,23 +540,47 @@ const PaymentModal = ({
 
           {/* Opciones adicionales */}
           <div className="space-y-2 py-2 border-t border-b border-gray-100">
-            {/* Service charge toggle */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={includeServiceCharge}
-                  onChange={(e) => {
-                    setIncludeServiceCharge(e.target.checked)
-                    recalcAmount(e.target.checked, includeDelivery, deliveryCharge, totalDiscountPercent)
-                  }}
-                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm font-medium text-gray-700">Servicio (10%)</span>
-              </label>
-              <span className={`text-sm font-medium ${includeServiceCharge ? 'text-primary-600' : 'text-gray-400'}`}>
-                {includeServiceCharge ? formatCurrency(serviceChargeAmount) : '$0'}
-              </span>
+            {/* Service charge toggle + editable amount */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeServiceCharge}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      const defaultAmt = checked ? Math.round(total * 0.10) : 0
+                      if (checked) setServiceChargeValue(defaultAmt)
+                      setIncludeServiceCharge(checked)
+                      recalcAmount(checked, checked ? defaultAmt : serviceChargeValue, includeDelivery, deliveryCharge, totalDiscountPercent)
+                      if (paymentMethod === 'MIXTO') { setMixCashAmount(''); setMixTransferAmount('') }
+                    }}
+                    className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Servicio</span>
+                </label>
+                <span className={`text-sm font-medium ${includeServiceCharge ? 'text-primary-600' : 'text-gray-400'}`}>
+                  {includeServiceCharge ? formatCurrency(serviceChargeAmount) : '$0'}
+                </span>
+              </div>
+              {includeServiceCharge && (
+                <div className="ml-6">
+                  <input
+                    type="number"
+                    value={serviceChargeValue}
+                    onChange={(e) => {
+                      const val = Math.max(0, parseInt(e.target.value) || 0)
+                      setServiceChargeValue(val)
+                      recalcAmount(includeServiceCharge, val, includeDelivery, deliveryCharge, totalDiscountPercent)
+                      if (paymentMethod === 'MIXTO') { setMixCashAmount(''); setMixTransferAmount('') }
+                    }}
+                    className="w-full text-sm px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    min="0"
+                    step="500"
+                    placeholder="Valor servicio"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Delivery charge toggle with editable amount */}
@@ -556,7 +592,8 @@ const PaymentModal = ({
                     checked={includeDelivery}
                     onChange={(e) => {
                       setIncludeDelivery(e.target.checked)
-                      recalcAmount(includeServiceCharge, e.target.checked, deliveryCharge, totalDiscountPercent)
+                      recalcAmount(includeServiceCharge, serviceChargeValue, e.target.checked, deliveryCharge, totalDiscountPercent)
+                      if (paymentMethod === 'MIXTO') { setMixCashAmount(''); setMixTransferAmount('') }
                     }}
                     className="w-4 h-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                   />
@@ -574,7 +611,8 @@ const PaymentModal = ({
                     onChange={(e) => {
                       const val = Math.max(0, parseInt(e.target.value) || 0)
                       setDeliveryCharge(val)
-                      recalcAmount(includeServiceCharge, includeDelivery, val, totalDiscountPercent)
+                      recalcAmount(includeServiceCharge, serviceChargeValue, includeDelivery, val, totalDiscountPercent)
+                      if (paymentMethod === 'MIXTO') { setMixCashAmount(''); setMixTransferAmount('') }
                     }}
                     className="w-full text-sm px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     min="0"
@@ -600,7 +638,7 @@ const PaymentModal = ({
                   onChange={(e) => {
                     const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
                     setTotalDiscountPercent(val)
-                    recalcAmount(includeServiceCharge, includeDelivery, deliveryCharge, val)
+                    recalcAmount(includeServiceCharge, serviceChargeValue, includeDelivery, deliveryCharge, val)
                   }}
                   className="w-full text-sm px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   min="0"
@@ -636,6 +674,56 @@ const PaymentModal = ({
                 </div>
               )}
             </>
+          ) : paymentMethod === 'MIXTO' ? (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-500">Total a distribuir: <strong>{formatCurrency(finalTotal)}</strong></p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Monto en Efectivo</label>
+                <input
+                  type="number"
+                  value={mixCashAmount}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setMixCashAmount(val)
+                    const cash = parseFloat(val) || 0
+                    const remaining = Math.max(0, finalTotal - cash)
+                    setMixTransferAmount(remaining.toFixed(0))
+                    setAmountReceived((cash + remaining).toFixed(0))
+                  }}
+                  className="input-field"
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Monto en Transferencia / Nequi</label>
+                <input
+                  type="number"
+                  value={mixTransferAmount}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setMixTransferAmount(val)
+                    const transfer = parseFloat(val) || 0
+                    const remaining = Math.max(0, finalTotal - transfer)
+                    setMixCashAmount(remaining.toFixed(0))
+                    setAmountReceived((transfer + remaining).toFixed(0))
+                  }}
+                  className="input-field"
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
+              {(() => {
+                const cash = parseFloat(mixCashAmount) || 0
+                const transfer = parseFloat(mixTransferAmount) || 0
+                const sumOk = Math.abs(cash + transfer - finalTotal) < 1
+                return (
+                  <p className={`text-xs font-medium ${sumOk ? 'text-green-600' : 'text-red-500'}`}>
+                    {sumOk ? '✓ Los montos cuadran' : `Diferencia: ${formatCurrency(finalTotal - cash - transfer)}`}
+                  </p>
+                )
+              })()}
+            </div>
           ) : (
             <div className="p-4 bg-primary-50 rounded-xl text-center">
               <CreditCard className="w-12 h-12 mx-auto text-primary-600 mb-2" />
@@ -649,7 +737,7 @@ const PaymentModal = ({
           <Button
             variant="primary"
             className="w-full"
-            disabled={processing || (paymentMethod === 'EFECTIVO' && parseFloat(amountReceived) < finalTotal)}
+            disabled={processing || (paymentMethod === 'EFECTIVO' && parseFloat(amountReceived) < finalTotal) || (paymentMethod === 'MIXTO' && Math.abs((parseFloat(mixCashAmount) || 0) + (parseFloat(mixTransferAmount) || 0) - finalTotal) >= 1)}
             onClick={onConfirm}
           >
             {processing ? (
@@ -692,7 +780,7 @@ const POSPage = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [customerSearch, setCustomerSearch] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
+  const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'MIXTO'>('EFECTIVO')
   const [amountReceived, setAmountReceived] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -703,9 +791,12 @@ const POSPage = () => {
   const [completedInvoice, setCompletedInvoice] = useState<any>(null)
   const [showInvoiceConfirmModal, setShowInvoiceConfirmModal] = useState(false)
   const [includeServiceCharge, setIncludeServiceCharge] = useState(false)
+  const [serviceChargeValue, setServiceChargeValue] = useState(0)
   const [includeDelivery, setIncludeDelivery] = useState(false)
   const [deliveryCharge, setDeliveryCharge] = useState(3000)
   const [totalDiscountPercent, setTotalDiscountPercent] = useState(0)
+  const [mixCashAmount, setMixCashAmount] = useState('')
+  const [mixTransferAmount, setMixTransferAmount] = useState('')
 
   // Table selection for POS
   const [tables, setTables] = useState<RestaurantTable[]>([])
@@ -984,8 +1075,10 @@ const POSPage = () => {
           paymentMethod: paymentMethod,
           amountReceived: parseFloat(amountReceived),
           discountPercent: (discountType === 'percent' ? discount : 0) + totalDiscountPercent,
-          serviceChargePercent: includeServiceCharge ? 10 : 0,
+          serviceChargeAmount: includeServiceCharge ? serviceChargeValue : 0,
           deliveryChargeAmount: includeDelivery ? deliveryCharge : 0,
+          cashAmount: paymentMethod === 'MIXTO' ? (parseFloat(mixCashAmount) || 0) : undefined,
+          transferAmount: paymentMethod === 'MIXTO' ? (parseFloat(mixTransferAmount) || 0) : undefined,
           notes: notes || undefined,
         })
 
@@ -1003,9 +1096,11 @@ const POSPage = () => {
           customerId: customerId,
           paymentMethod: paymentMethod,
           discountPercent: (discountType === 'percent' ? discount : 0) + totalDiscountPercent,
-          serviceChargePercent: includeServiceCharge ? 10 : 0,
+          serviceChargeAmount: includeServiceCharge ? serviceChargeValue : 0,
           deliveryChargeAmount: includeDelivery ? deliveryCharge : 0,
           amountReceived: parseFloat(amountReceived),
+          cashAmount: paymentMethod === 'MIXTO' ? (parseFloat(mixCashAmount) || 0) : undefined,
+          transferAmount: paymentMethod === 'MIXTO' ? (parseFloat(mixTransferAmount) || 0) : undefined,
           notes: notes,
           details: items.map(item => ({
             productId: item.id,
@@ -1038,7 +1133,7 @@ const POSPage = () => {
   }
 
   const handlePrintPreBill = () => {
-    const serviceChargeAmount = includeServiceCharge ? total * 0.10 : 0
+    const serviceChargeAmount = includeServiceCharge ? serviceChargeValue : 0
     const deliveryAmount = includeDelivery ? deliveryCharge : 0
     const totalDiscountAmount = (total * totalDiscountPercent) / 100
     const finalTotal = total + serviceChargeAmount + deliveryAmount - totalDiscountAmount
@@ -1058,7 +1153,7 @@ const POSPage = () => {
       discountAmount: discountAmount + totalDiscountAmount,
       discountPercent: combinedDiscountPercent > 0 ? combinedDiscountPercent : undefined,
       serviceChargeAmount: serviceChargeAmount,
-      serviceChargePercent: includeServiceCharge ? 10 : 0,
+      serviceChargePercent: 0,
       deliveryChargeAmount: deliveryAmount,
       total: finalTotal,
     }, { isPreBill: true })
@@ -1388,6 +1483,8 @@ const POSPage = () => {
               onClick={() => {
                 setPaymentMethod('EFECTIVO')
                 setAmountReceived(total.toString())
+                setMixCashAmount('')
+                setMixTransferAmount('')
                 setShowPaymentModal(true)
               }}
             >
@@ -1400,6 +1497,8 @@ const POSPage = () => {
               onClick={() => {
                 setPaymentMethod('TRANSFERENCIA')
                 setAmountReceived(total.toString())
+                setMixCashAmount('')
+                setMixTransferAmount('')
                 setShowPaymentModal(true)
               }}
             >
@@ -1407,6 +1506,22 @@ const POSPage = () => {
               Transferencia
             </Button>
           </div>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={items.length === 0}
+            onClick={() => {
+              setPaymentMethod('MIXTO')
+              setMixCashAmount('')
+              setMixTransferAmount('')
+              setAmountReceived(total.toString())
+              setShowPaymentModal(true)
+            }}
+          >
+            <Banknote size={16} />
+            <CreditCard size={16} />
+            Pago Mixto
+          </Button>
           {items.length > 0 && selectedTableId && selectedTable && (
             <button
               onClick={handleSendToTable}
@@ -1443,6 +1558,8 @@ const POSPage = () => {
         total={total}
         includeServiceCharge={includeServiceCharge}
         setIncludeServiceCharge={setIncludeServiceCharge}
+        serviceChargeValue={serviceChargeValue}
+        setServiceChargeValue={setServiceChargeValue}
         includeDelivery={includeDelivery}
         setIncludeDelivery={setIncludeDelivery}
         deliveryCharge={deliveryCharge}
@@ -1451,6 +1568,10 @@ const POSPage = () => {
         setTotalDiscountPercent={setTotalDiscountPercent}
         amountReceived={amountReceived}
         setAmountReceived={setAmountReceived}
+        mixCashAmount={mixCashAmount}
+        setMixCashAmount={setMixCashAmount}
+        mixTransferAmount={mixTransferAmount}
+        setMixTransferAmount={setMixTransferAmount}
         processing={processing}
         onClose={() => setShowPaymentModal(false)}
         onConfirm={handleConfirmSale}

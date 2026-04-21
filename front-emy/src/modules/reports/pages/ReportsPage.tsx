@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
-import { Download, BarChart3, TrendingUp, DollarSign, Loader2, Package, CreditCard } from 'lucide-react'
+import { Download, BarChart3, TrendingUp, DollarSign, Loader2, Package, CreditCard, FileText, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Button from '@/shared/components/ui/Button'
 import { reportService, SalesSummary, TopProduct, TopCustomer, InventorySummary, PaymentMethodStat } from '@/core/api/reportService'
@@ -8,6 +8,68 @@ import { invoiceService } from '@/core/api/invoiceService'
 import { RootState } from '@/app/store'
 import XLSX from 'xlsx-js-style'
 import DateRangeFilter, { toLocalDateStr } from '@/shared/components/DateRangeFilter'
+
+const TRANSFER_METHODS = new Set(['TRANSFERENCIA', 'TARJETA_CREDITO', 'TARJETA_DEBITO', 'NEQUI', 'DAVIPLATA'])
+
+const safeNum = (v: any): number => {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+const buildPaymentTotals = (invoicesCompleted: any[]) =>
+  invoicesCompleted.reduce(
+    (acc: any, inv: any) => {
+      const method: string = inv.paymentMethod || ''
+      const total = safeNum(inv.total)
+      const subtotal = safeNum(inv.subtotal)
+      const tax = safeNum(inv.taxAmount)
+      const discount = safeNum(inv.discountAmount)
+      const service = safeNum(inv.serviceChargeAmount)
+      const delivery = safeNum(inv.deliveryChargeAmount)
+      const cashAmt = safeNum(inv.cashAmount)
+      const transferAmt = safeNum(inv.transferAmount)
+
+      acc.total += total
+      acc.subtotal += subtotal
+      acc.tax += tax
+      acc.discount += discount
+      acc.serviceCharge += service
+      acc.deliveryCharge += delivery
+
+      if (method === 'EFECTIVO') {
+        acc.cash.total += total
+        acc.cash.withoutService += total - service
+        acc.cash.serviceOnly += service
+        acc.cash.deliveryOnly += delivery
+        acc.cash.netSales += total - service - delivery
+      } else if (TRANSFER_METHODS.has(method)) {
+        acc.transfer.total += total
+        acc.transfer.withoutService += total - service
+        acc.transfer.serviceOnly += service
+        acc.transfer.deliveryOnly += delivery
+        acc.transfer.netSales += total - service - delivery
+      } else if (method === 'MIXTO') {
+        acc.cash.total += cashAmt
+        acc.transfer.total += transferAmt
+        acc.transfer.serviceOnly += service
+        acc.transfer.deliveryOnly += delivery
+        acc.cash.withoutService += cashAmt
+        acc.transfer.withoutService += transferAmt - service
+        acc.transfer.netSales += transferAmt - service - delivery
+        acc.cash.netSales += cashAmt
+      } else {
+        acc.other += total
+      }
+
+      return acc
+    },
+    {
+      total: 0, subtotal: 0, tax: 0, discount: 0, serviceCharge: 0, deliveryCharge: 0,
+      cash: { total: 0, withoutService: 0, serviceOnly: 0, deliveryOnly: 0, netSales: 0 },
+      transfer: { total: 0, withoutService: 0, serviceOnly: 0, deliveryOnly: 0, netSales: 0 },
+      other: 0,
+    }
+  )
 
 const ReportsPage = () => {
   const { theme, company } = useSelector((state: RootState) => state.settings)
@@ -21,6 +83,7 @@ const ReportsPage = () => {
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([])
   const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodStat[]>([])
+  const [showBasicReport, setShowBasicReport] = useState(false)
 
   const fetchReports = async () => {
     try {
@@ -49,6 +112,113 @@ const ReportsPage = () => {
     }
   }
 
+  const exportBasicReportToExcel = () => {
+    try {
+      const cashNetSales = Number(totals?.cash?.netSales || 0)
+      const transferNetSales = Number(totals?.transfer?.netSales || 0)
+      const ownerTotal = cashNetSales + transferNetSales
+
+      const hexToArgb = (hex: string | undefined, fallback: string) => {
+        const normalized = (hex || fallback).replace('#', '').toUpperCase()
+        return normalized.length === 6 ? normalized : fallback.replace('#', '').toUpperCase()
+      }
+
+      const primaryColor = hexToArgb(theme?.primaryColor, '#2563EB')
+      const secondaryColor = hexToArgb(theme?.secondaryColor, '#1E3A8A')
+
+      const data = [
+        ['REPORTE BÁSICO DEL DUEÑO', ''],
+        [`Período: ${dateRange.start} a ${dateRange.end}`, ''],
+        ['', ''],
+        ['Concepto', 'Valor Neto'],
+        ['Efectivo (sin propinas ni domicilios)', cashNetSales],
+        ['Transferencia (sin propinas ni domicilios)', transferNetSales],
+        ['Total Dueño (Efectivo + Transferencia)', ownerTotal],
+      ]
+
+      const ws = XLSX.utils.aoa_to_sheet(data)
+      ws['!cols'] = [{ wch: 52 }, { wch: 26 }]
+      ws['!rows'] = [{ hpt: 28 }, { hpt: 22 }, { hpt: 8 }, { hpt: 20 }, { hpt: 20 }, { hpt: 20 }, { hpt: 24 }]
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } },
+      ]
+
+      const titleStyle: any = {
+        font: { bold: true, sz: 15, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: secondaryColor } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      }
+
+      const periodStyle: any = {
+        font: { italic: true, sz: 11, color: { rgb: '334155' } },
+        fill: { fgColor: { rgb: 'F8FAFC' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      }
+
+      const headerStyle: any = {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: primaryColor } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      }
+
+      const labelStyle: any = {
+        font: { sz: 11, color: { rgb: '1F2937' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+      }
+
+      const moneyStyle: any = {
+        numFmt: '"$"#,##0',
+        font: { sz: 11, color: { rgb: '0F172A' } },
+        alignment: { horizontal: 'right', vertical: 'center' },
+      }
+
+      const totalLabelStyle: any = {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: secondaryColor } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+      }
+
+      const totalMoneyStyle: any = {
+        numFmt: '"$"#,##0',
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: secondaryColor } },
+        alignment: { horizontal: 'right', vertical: 'center' },
+      }
+
+      const titleRef = XLSX.utils.encode_cell({ r: 0, c: 0 })
+      const periodRef = XLSX.utils.encode_cell({ r: 1, c: 0 })
+      if (ws[titleRef]) ws[titleRef].s = titleStyle
+      if (ws[periodRef]) ws[periodRef].s = periodStyle
+
+      for (let c = 0; c <= 1; c += 1) {
+        const headerRef = XLSX.utils.encode_cell({ r: 3, c })
+        if (ws[headerRef]) ws[headerRef].s = headerStyle
+      }
+
+      for (let r = 4; r <= 5; r += 1) {
+        const labelRef = XLSX.utils.encode_cell({ r, c: 0 })
+        const valueRef = XLSX.utils.encode_cell({ r, c: 1 })
+        if (ws[labelRef]) ws[labelRef].s = labelStyle
+        if (ws[valueRef]) ws[valueRef].s = moneyStyle
+      }
+
+      const totalLabelRef = XLSX.utils.encode_cell({ r: 6, c: 0 })
+      const totalValueRef = XLSX.utils.encode_cell({ r: 6, c: 1 })
+      if (ws[totalLabelRef]) ws[totalLabelRef].s = totalLabelStyle
+      if (ws[totalValueRef]) ws[totalValueRef].s = totalMoneyStyle
+
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'ReporteBasico')
+
+      XLSX.writeFile(wb, `reporte_basico_dueno_${dateRange.start}_${dateRange.end}.xlsx`)
+      toast.success('Reporte básico exportado en Excel')
+    } catch (error) {
+      console.error('Error exporting basic report:', error)
+      toast.error('Error al exportar reporte básico')
+    }
+  }
+
   // Calculate totals for visual cards and detailed report
   const [totals, setTotals] = useState<any>({
     total: 0,
@@ -59,15 +229,17 @@ const ReportsPage = () => {
     deliveryCharge: 0,
     cash: {
       total: 0,
-      withService: 0,
       withoutService: 0,
-      serviceOnly: 0
+      serviceOnly: 0,
+      deliveryOnly: 0,
+      netSales: 0,
     },
     transfer: {
       total: 0,
-      withService: 0,
       withoutService: 0,
-      serviceOnly: 0
+      serviceOnly: 0,
+      deliveryOnly: 0,
+      netSales: 0,
     },
     other: 0
   })
@@ -81,67 +253,7 @@ const ReportsPage = () => {
         const invoices = (await invoiceService.getByDateRange(startDateTime, endDateTime).catch(() => [])) as any[]
         const invoicesCompleted = invoices.filter((i) => i.status === 'COMPLETADA')
         
-        const safeNumber = (v: any) => {
-          const n = Number(v)
-          return Number.isFinite(n) ? n : 0
-        }
-        
-        const calculatedTotals = invoicesCompleted.reduce(
-          (acc, inv) => {
-            const method = inv.paymentMethod
-            const total = safeNumber(inv.total)
-            const subtotal = safeNumber(inv.subtotal)
-            const tax = safeNumber(inv.taxAmount)
-            const discount = safeNumber(inv.discountAmount)
-            const service = safeNumber(inv.serviceChargeAmount || 0)
-            const delivery = safeNumber(inv.deliveryChargeAmount || 0)
-
-            acc.total += total
-            acc.subtotal += subtotal
-            acc.tax += tax
-            acc.discount += discount
-            acc.serviceCharge += service
-            acc.deliveryCharge += delivery
-
-            if (method === 'EFECTIVO') {
-              acc.cash.total += total
-              acc.cash.withService += total
-              acc.cash.withoutService += (total - service)
-              acc.cash.serviceOnly += service
-            } else if (['TRANSFERENCIA', 'TARJETA_CREDITO', 'TARJETA_DEBITO'].includes(method || '')) {
-              acc.transfer.total += total
-              acc.transfer.withService += total
-              acc.transfer.withoutService += (total - service)
-              acc.transfer.serviceOnly += service
-            } else {
-              acc.other += total
-            }
-
-            return acc
-          },
-          {
-            total: 0,
-            subtotal: 0,
-            tax: 0,
-            discount: 0,
-            serviceCharge: 0,
-            deliveryCharge: 0,
-            cash: {
-              total: 0,
-              withService: 0,
-              withoutService: 0,
-              serviceOnly: 0
-            },
-            transfer: {
-              total: 0,
-              withService: 0,
-              withoutService: 0,
-              serviceOnly: 0
-            },
-            other: 0
-          }
-        )
-        
+        const calculatedTotals = buildPaymentTotals(invoicesCompleted)
         setTotals(calculatedTotals)
       } catch (error) {
         console.error('Error calculating totals:', error)
@@ -188,14 +300,6 @@ const ReportsPage = () => {
     const startDateTime = `${dateRange.start}T00:00:00`
     const endDateTime = `${dateRange.end}T23:59:59`
 
-    const safeNumber = (v: any) => {
-      const n = Number(v)
-      return Number.isFinite(n) ? n : 0
-    }
-
-    const isCash = (method?: string | null) => (method || '') === 'EFECTIVO'
-    const isTransfer = (method?: string | null) => ['TRANSFERENCIA', 'TARJETA_CREDITO', 'TARJETA_DEBITO'].includes(method || '')
-
     const getPaymentMethodLabelLocal = (method?: string | null) => {
       const m = method || ''
       if (!m) return 'N/A'
@@ -208,61 +312,7 @@ const ReportsPage = () => {
 
       const invoicesCompleted = invoices.filter((i) => (i as any).status === 'COMPLETADA')
 
-      const totals = invoicesCompleted.reduce(
-        (acc, inv) => {
-          const method = (inv as any).paymentMethod
-          const total = safeNumber((inv as any).total)
-          const subtotal = safeNumber((inv as any).subtotal)
-          const tax = safeNumber((inv as any).taxAmount)
-          const discount = safeNumber((inv as any).discountAmount)
-          const service = safeNumber((inv as any).serviceChargeAmount || 0)
-          const delivery = safeNumber((inv as any).deliveryChargeAmount || 0)
-
-          acc.total += total
-          acc.subtotal += subtotal
-          acc.tax += tax
-          acc.discount += discount
-          acc.serviceCharge += service
-          acc.deliveryCharge += delivery
-
-          if (isCash(method)) {
-            acc.cash.total += total
-            acc.cash.withService += total
-            acc.cash.withoutService += (total - service)
-            acc.cash.serviceOnly += service
-          } else if (isTransfer(method)) {
-            acc.transfer.total += total
-            acc.transfer.withService += total
-            acc.transfer.withoutService += (total - service)
-            acc.transfer.serviceOnly += service
-          } else {
-            acc.other += total
-          }
-
-          return acc
-        },
-        {
-          total: 0,
-          subtotal: 0,
-          tax: 0,
-          discount: 0,
-          serviceCharge: 0,
-          deliveryCharge: 0,
-          cash: {
-            total: 0,
-            withService: 0,
-            withoutService: 0,
-            serviceOnly: 0
-          },
-          transfer: {
-            total: 0,
-            withService: 0,
-            withoutService: 0,
-            serviceOnly: 0
-          },
-          other: 0
-        }
-      )
+      const totals = buildPaymentTotals(invoicesCompleted)
 
       // Helper: convert hex color to ARGB (without #)
       const hexToArgb = (hex: string) => hex.replace('#', '').toUpperCase()
@@ -343,21 +393,23 @@ const ReportsPage = () => {
         [],
         ['DISCRIMINACIÓN POR MÉTODO DE PAGO'],
         ['EFECTIVO'],
-        ['  Total con servicio', totals.cash.withService],
-        ['  Total sin servicio', totals.cash.withoutService],
+        ['  Total efectivo', totals.cash.total],
+        ['  Sin servicio ni domicilio', totals.cash.netSales],
         ['  Servicio (propina)', totals.cash.serviceOnly],
+        ['  Domicilios en efectivo', totals.cash.deliveryOnly],
         [],
-        ['TRANSFERENCIA'],
-        ['  Total con servicio', totals.transfer.withService],
-        ['  Total sin servicio', totals.transfer.withoutService],
+        ['TRANSFERENCIA / MIXTO'],
+        ['  Total transferencia', totals.transfer.total],
+        ['  Sin servicio ni domicilio', totals.transfer.netSales],
         ['  Servicio (propina)', totals.transfer.serviceOnly],
+        ['  Domicilios en transfer', totals.transfer.deliveryOnly],
         [],
         ['CIERRE DE CAJA'],
-        ['Total Efectivo (incluye servicio)', totals.cash.total],
-        ['Total Transferencia (incluye servicio)', totals.transfer.total],
+        ['Total Efectivo (sin propinas ni domicilio)', totals.cash.netSales],
+        ['Total Transferencia (sin propinas ni domicilio)', totals.transfer.netSales],
         ['Total Domicilios', totals.deliveryCharge],
         ['Total Servicio/Propina', totals.serviceCharge],
-        ['TOTAL NETO DUEÑO', totals.total - totals.serviceCharge],
+        ['GRAN TOTAL DUEÑO', totals.cash.netSales + totals.transfer.netSales],
       ]
 
       const wsResumen = XLSX.utils.aoa_to_sheet(resumenAoA)
@@ -527,7 +579,55 @@ const ReportsPage = () => {
       <div className="flex flex-wrap items-center gap-3">
         <DateRangeFilter dateRange={dateRange} setDateRange={setDateRange} />
         <Button variant="primary" size="sm" onClick={exportToExcel}><Download size={18} /> Exportar</Button>
+        <Button variant="secondary" size="sm" onClick={() => setShowBasicReport(true)}><FileText size={18} /> Reporte Básico</Button>
       </div>
+
+      {/* Basic Owner Report Modal */}
+      {showBasicReport && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-scale-in" id="basic-report-print">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">Reporte del Dueño</h2>
+              <button onClick={() => setShowBasicReport(false)} className="text-gray-400 hover:text-gray-600 no-print">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4 text-center">{dateRange.start} &rarr; {dateRange.end}</p>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-600">Ventas Efectivo</span>
+                <span className="text-base font-bold text-green-700">{formatCurrency(totals?.cash?.netSales || 0)}</span>
+              </div>
+              <p className="text-xs text-gray-400 -mt-2 pb-1">(sin servicio ni domicilio)</p>
+              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <span className="text-sm text-gray-600">Ventas Transferencia</span>
+                <span className="text-base font-bold text-blue-700">{formatCurrency(totals?.transfer?.netSales || 0)}</span>
+              </div>
+              <p className="text-xs text-gray-400 -mt-2 pb-1">(sin servicio ni domicilio)</p>
+              <div className="flex justify-between items-center py-3 bg-emerald-50 rounded-xl px-3">
+                <span className="text-sm font-bold text-emerald-800">Total Dueño</span>
+                <span className="text-xl font-bold text-emerald-700">{formatCurrency((totals?.cash?.netSales || 0) + (totals?.transfer?.netSales || 0))}</span>
+              </div>
+              <div className="pt-2 grid grid-cols-2 gap-2 text-xs text-gray-500">
+                <div className="bg-amber-50 rounded-lg p-2 text-center">
+                  <p className="font-medium text-amber-800">Propinas</p>
+                  <p className="font-bold text-amber-700">{formatCurrency(totals?.serviceCharge || 0)}</p>
+                </div>
+                <div className="bg-purple-50 rounded-lg p-2 text-center">
+                  <p className="font-medium text-purple-800">Domicilios</p>
+                  <p className="font-bold text-purple-700">{formatCurrency(totals?.deliveryCharge || 0)}</p>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={exportBasicReportToExcel}
+              className="mt-5 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-800 text-white rounded-xl hover:bg-gray-700 transition-colors text-sm font-medium no-print"
+            >
+              <Download size={16} /> Exportar Excel
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -557,6 +657,37 @@ const ReportsPage = () => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Owner Report */}
+          <div className="card border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <h3 className="text-lg font-bold text-emerald-800 mb-4">📊 Reporte del Dueño</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 bg-white rounded-xl border border-blue-200">
+                <p className="text-xs text-gray-500 mb-1">Ventas Transferencia</p>
+                <p className="text-xl font-bold text-blue-700">{formatCurrency(totals?.transfer?.netSales || 0)}</p>
+                <p className="text-xs text-gray-400 mt-1">Sin servicio ni domicilio</p>
+                {(totals?.transfer?.deliveryOnly || 0) > 0 && (
+                  <p className="text-xs text-amber-600 mt-1">Domicilios: {formatCurrency(totals.transfer.deliveryOnly)}</p>
+                )}
+              </div>
+              <div className="p-4 bg-white rounded-xl border border-green-200">
+                <p className="text-xs text-gray-500 mb-1">Ventas Efectivo</p>
+                <p className="text-xl font-bold text-green-700">{formatCurrency(totals?.cash?.netSales || 0)}</p>
+                <p className="text-xs text-gray-400 mt-1">Sin servicio ni domicilio</p>
+              </div>
+              <div className="p-4 bg-emerald-600 rounded-xl text-white">
+                <p className="text-xs text-emerald-100 mb-1">Gran Total Dueño</p>
+                <p className="text-xl font-bold">{formatCurrency((totals?.transfer?.netSales || 0) + (totals?.cash?.netSales || 0))}</p>
+                <p className="text-xs text-emerald-200 mt-1">Transferencia + Efectivo netos</p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-emerald-200 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-gray-600">
+              <span>Propinas: <strong className="text-amber-700">{formatCurrency(totals?.serviceCharge || 0)}</strong></span>
+              <span>Domicilios: <strong className="text-purple-700">{formatCurrency(totals?.deliveryCharge || 0)}</strong></span>
+              <span>Total Efectivo: <strong>{formatCurrency(totals?.cash?.total || 0)}</strong></span>
+              <span>Total Transfer: <strong>{formatCurrency(totals?.transfer?.total || 0)}</strong></span>
+            </div>
           </div>
 
           {/* Payment Method Breakdown */}
@@ -597,8 +728,12 @@ const ReportsPage = () => {
                   <span className="font-semibold text-gray-800">{formatCurrency(totals?.transfer?.total || 0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Sin servicio:</span>
-                  <span className="font-semibold text-gray-800">{formatCurrency(totals?.transfer?.withoutService || 0)}</span>
+                  <span className="text-gray-600">Neto (sin extras):</span>
+                  <span className="font-semibold text-gray-800">{formatCurrency(totals?.transfer?.netSales || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Domicilios:</span>
+                  <span className="font-semibold text-purple-600">{formatCurrency(totals?.transfer?.deliveryOnly || 0)}</span>
                 </div>
                 <div className="flex justify-between border-t pt-2">
                   <span className="text-gray-600">Propinas:</span>

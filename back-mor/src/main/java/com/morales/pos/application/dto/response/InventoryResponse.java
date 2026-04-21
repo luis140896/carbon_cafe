@@ -19,6 +19,8 @@ public class InventoryResponse {
     private Long productId;
     private String productCode;
     private String productName;
+    private Long categoryId;
+    private String categoryName;
     private BigDecimal quantity;
     private BigDecimal minStock;
     private BigDecimal maxStock;
@@ -44,6 +46,10 @@ public class InventoryResponse {
             builder.productId(inventory.getProduct().getId())
                    .productCode(inventory.getProduct().getCode())
                    .productName(inventory.getProduct().getName());
+            if (inventory.getProduct().getCategory() != null) {
+                builder.categoryId(inventory.getProduct().getCategory().getId())
+                       .categoryName(inventory.getProduct().getCategory().getName());
+            }
         }
 
         return builder.build();

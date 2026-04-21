@@ -101,6 +101,8 @@ const InventoryPage = () => {
             id: productId,
             code: item?.productCode,
             name: item?.productName,
+            categoryId: item?.categoryId,
+            categoryName: item?.categoryName,
           },
         }
       })

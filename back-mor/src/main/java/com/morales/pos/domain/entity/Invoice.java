@@ -87,6 +87,14 @@ public class Invoice extends BaseEntity {
     @Builder.Default
     private BigDecimal changeAmount = BigDecimal.ZERO;
 
+    @Column(name = "cash_amount", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal cashAmount = BigDecimal.ZERO;
+
+    @Column(name = "transfer_amount", precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal transferAmount = BigDecimal.ZERO;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20)
     @Builder.Default

@@ -114,10 +114,13 @@ const TablesPage = () => {
   const [priorityReason, setPriorityReason] = useState('')
 
   // Pay form
-  const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA'>('EFECTIVO')
+  const [paymentMethod, setPaymentMethod] = useState<'EFECTIVO' | 'TRANSFERENCIA' | 'MIXTO'>('EFECTIVO')
   const [amountReceived, setAmountReceived] = useState('')
   const [processing, setProcessing] = useState(false)
   const [includeServiceCharge, setIncludeServiceCharge] = useState(false)
+  const [serviceChargeValue, setServiceChargeValue] = useState(0)
+  const [mixCashAmount, setMixCashAmount] = useState('')
+  const [mixTransferAmount, setMixTransferAmount] = useState('')
 
   // Customers
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -395,8 +398,10 @@ const TablesPage = () => {
         paymentMethod,
         amountReceived: parseFloat(amountReceived),
         discountPercent: totalDiscountPercent,
-        serviceChargePercent: includeServiceCharge ? 10 : 0,
+        serviceChargeAmount: includeServiceCharge ? serviceChargeValue : 0,
         deliveryChargeAmount: deliveryAmount,
+        cashAmount: paymentMethod === 'MIXTO' ? (parseFloat(mixCashAmount) || 0) : undefined,
+        transferAmount: paymentMethod === 'MIXTO' ? (parseFloat(mixTransferAmount) || 0) : undefined,
       }
       const result = await tableService.payTable(selectedTable.id, request) as any
       // Fetch full invoice for printing
@@ -414,6 +419,9 @@ const TablesPage = () => {
       setDeliveryCharge(3000)
       setTotalDiscountPercent(0)
       setIncludeServiceCharge(false)
+      setServiceChargeValue(0)
+      setMixCashAmount('')
+      setMixTransferAmount('')
       setSelectedTable(null)
       setActiveSession(null)
       await fetchTables()
@@ -1289,14 +1297,14 @@ const TablesPage = () => {
       {showPayModal && activeSession && (() => {
         const baseTotal = activeSession.total || 0
         const discountAmount = (baseTotal * totalDiscountPercent) / 100
-        const svcAmount = includeServiceCharge ? baseTotal * 0.10 : 0
+        const svcAmount = includeServiceCharge ? serviceChargeValue : 0
         const deliveryAmount = includeDelivery ? deliveryCharge : 0
         const finalTotal = baseTotal - discountAmount + svcAmount + deliveryAmount
-        const recalcAmount = () => {
+        const recalcAmount = (svc = includeServiceCharge, svcAmt = serviceChargeValue, dlv = includeDelivery, dlvCharge = deliveryCharge, discPct = totalDiscountPercent) => {
           const newBase = activeSession.total || 0
-          const newDisc = (newBase * totalDiscountPercent) / 100
-          const newSvc = includeServiceCharge ? newBase * 0.10 : 0
-          const newDel = includeDelivery ? deliveryCharge : 0
+          const newDisc = (newBase * discPct) / 100
+          const newSvc = svc ? svcAmt : 0
+          const newDel = dlv ? dlvCharge : 0
           return (newBase - newDisc + newSvc + newDel).toFixed(0)
         }
         return (
@@ -1334,24 +1342,44 @@ const TablesPage = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between py-1 border-t border-primary-100">
-                <label className="flex items-center gap-2 cursor-pointer">
+              <div className="space-y-1 py-1 border-t border-primary-100">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeServiceCharge}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        const defaultAmt = checked ? Math.round(baseTotal * 0.10) : 0
+                        if (checked) setServiceChargeValue(defaultAmt)
+                        setIncludeServiceCharge(checked)
+                        setAmountReceived(recalcAmount(checked, checked ? defaultAmt : serviceChargeValue))
+                        if (paymentMethod === 'MIXTO') { setMixCashAmount(''); setMixTransferAmount('') }
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Servicio</span>
+                  </label>
+                  <span className={`text-sm font-medium ${includeServiceCharge ? 'text-primary-600' : 'text-gray-400'}`}>
+                    {includeServiceCharge ? formatCurrency(svcAmount) : '$0'}
+                  </span>
+                </div>
+                {includeServiceCharge && (
                   <input
-                    type="checkbox"
-                    checked={includeServiceCharge}
+                    type="number"
+                    value={serviceChargeValue}
                     onChange={(e) => {
-                      setIncludeServiceCharge(e.target.checked)
-                      const newSvc = e.target.checked ? baseTotal * 0.10 : 0
-                      const newTotal = baseTotal + newSvc + deliveryAmount
-                      setAmountReceived(newTotal.toFixed(0))
+                      const val = Math.max(0, parseInt(e.target.value) || 0)
+                      setServiceChargeValue(val)
+                      setAmountReceived(recalcAmount(includeServiceCharge, val))
+                      if (paymentMethod === 'MIXTO') { setMixCashAmount(''); setMixTransferAmount('') }
                     }}
-                    className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                    min="0"
+                    step="500"
+                    placeholder="Valor servicio"
                   />
-                  <span className="text-sm font-medium text-gray-700">Servicio (10%)</span>
-                </label>
-                <span className={`text-sm font-medium ${includeServiceCharge ? 'text-primary-600' : 'text-gray-400'}`}>
-                  {includeServiceCharge ? formatCurrency(svcAmount) : '$0'}
-                </span>
+                )}
               </div>
               <div className="border-t border-primary-100 pt-2">
                 <label className="flex items-center gap-2 cursor-pointer mb-2">
@@ -1361,6 +1389,7 @@ const TablesPage = () => {
                     onChange={(e) => {
                       setIncludeDelivery(e.target.checked)
                       setAmountReceived(recalcAmount())
+                      if (paymentMethod === 'MIXTO') { setMixCashAmount(''); setMixTransferAmount('') }
                     }}
                     className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                   />
@@ -1397,27 +1426,43 @@ const TablesPage = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Método de pago</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
-                    onClick={() => setPaymentMethod('EFECTIVO')}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${
+                    onClick={() => { setPaymentMethod('EFECTIVO'); setMixCashAmount(''); setMixTransferAmount('') }}
+                    className={`flex items-center justify-center gap-1 p-3 rounded-xl border-2 transition-colors ${
                       paymentMethod === 'EFECTIVO' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'
                     }`}
                   >
-                    <Banknote size={18} />
+                    <Banknote size={16} />
                     Efectivo
                   </button>
                   <button
                     onClick={() => {
                       setPaymentMethod('TRANSFERENCIA')
                       setAmountReceived(String(finalTotal))
+                      setMixCashAmount('')
+                      setMixTransferAmount('')
                     }}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-colors ${
+                    className={`flex items-center justify-center gap-1 p-3 rounded-xl border-2 transition-colors ${
                       paymentMethod === 'TRANSFERENCIA' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'
                     }`}
                   >
-                    <CreditCard size={18} />
-                    Transferencia
+                    <CreditCard size={16} />
+                    Transfer
+                  </button>
+                  <button
+                    onClick={() => {
+                      setPaymentMethod('MIXTO')
+                      setMixCashAmount('')
+                      setMixTransferAmount('')
+                      setAmountReceived(String(finalTotal))
+                    }}
+                    className={`flex items-center justify-center gap-1 p-3 rounded-xl border-2 transition-colors ${
+                      paymentMethod === 'MIXTO' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    <Banknote size={14} /><CreditCard size={14} />
+                    Mixto
                   </button>
                 </div>
               </div>
@@ -1440,6 +1485,32 @@ const TablesPage = () => {
                   )}
                 </div>
               )}
+              {paymentMethod === 'MIXTO' && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">Total: <strong>{formatCurrency(finalTotal)}</strong></p>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Efectivo</label>
+                    <input type="number" value={mixCashAmount} onChange={(e) => {
+                      const val = e.target.value; setMixCashAmount(val)
+                      const cash = parseFloat(val) || 0
+                      const remaining = Math.max(0, finalTotal - cash)
+                      setMixTransferAmount(remaining.toFixed(0))
+                      setAmountReceived((cash + remaining).toFixed(0))
+                    }} className="input-field" min="0" placeholder="0" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Transferencia</label>
+                    <input type="number" value={mixTransferAmount} onChange={(e) => {
+                      const val = e.target.value; setMixTransferAmount(val)
+                      const transfer = parseFloat(val) || 0
+                      const remaining = Math.max(0, finalTotal - transfer)
+                      setMixCashAmount(remaining.toFixed(0))
+                      setAmountReceived((transfer + remaining).toFixed(0))
+                    }} className="input-field" min="0" placeholder="0" />
+                  </div>
+                  {(() => { const c = parseFloat(mixCashAmount)||0; const t = parseFloat(mixTransferAmount)||0; const ok = Math.abs(c+t-finalTotal)<1; return <p className={`text-xs font-medium ${ok?'text-green-600':'text-red-500'}`}>{ok?'✓ Los montos cuadran':`Diferencia: ${formatCurrency(finalTotal-c-t)}`}</p> })()}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-3 mt-6">
@@ -1451,7 +1522,7 @@ const TablesPage = () => {
               </button>
               <button
                 onClick={handlePayTable}
-                disabled={processing || parseFloat(amountReceived) < finalTotal}
+                disabled={processing || (paymentMethod !== 'MIXTO' && parseFloat(amountReceived) < finalTotal) || (paymentMethod === 'MIXTO' && Math.abs((parseFloat(mixCashAmount)||0)+(parseFloat(mixTransferAmount)||0)-finalTotal)>=1)}
                 className="flex-1 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard size={18} />}
