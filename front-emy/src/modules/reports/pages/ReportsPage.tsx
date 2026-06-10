@@ -458,13 +458,13 @@ const ReportsPage = () => {
         (inv as any).invoiceNumber || '',
         (inv as any).customer?.fullName || 'Cliente General',
         getPaymentMethodLabelLocal((inv as any).paymentMethod),
-        safeNumber((inv as any).subtotal),
-        safeNumber((inv as any).taxAmount),
-        safeNumber((inv as any).discountAmount),
-        safeNumber((inv as any).serviceChargePercent || 0),
-        safeNumber((inv as any).serviceChargeAmount || 0),
-        safeNumber((inv as any).deliveryChargeAmount || 0),
-        safeNumber((inv as any).total),
+        safeNum((inv as any).subtotal),
+        safeNum((inv as any).taxAmount),
+        safeNum((inv as any).discountAmount),
+        safeNum((inv as any).serviceChargePercent || 0),
+        safeNum((inv as any).serviceChargeAmount || 0),
+        safeNum((inv as any).deliveryChargeAmount || 0),
+        safeNum((inv as any).total),
         (inv as any).status || ''
       ])
       const invoicesAoA = [invoicesHeaders, ...invoicesData]
@@ -494,9 +494,9 @@ const ReportsPage = () => {
       //   const payHeaders = ['Método', 'Transacciones', 'Total', 'Porcentaje %']
       //   const payData = paymentMethods.map((m) => [
       //     getPaymentMethodLabel(m.paymentMethod),
-      //     safeNumber((m as any).count),
-      //     safeNumber((m as any).totalSales ?? (m as any).total),
-      //     safeNumber((m as any).percentage),
+      //     safeNum((m as any).count),
+      //     safeNum((m as any).totalSales ?? (m as any).total),
+      //     safeNum((m as any).percentage),
       //   ])
       //   const payAoA = [payHeaders, ...payData]
       //   const wsPay = XLSX.utils.aoa_to_sheet(payAoA)
@@ -517,8 +517,8 @@ const ReportsPage = () => {
         const prodHeaders = ['Producto', 'Cantidad', 'Ingresos']
         const prodData = topProducts.map((p) => [
           p.productName,
-          safeNumber(p.totalQuantity),
-          safeNumber(p.totalRevenue),
+          safeNum(p.totalQuantity),
+          safeNum(p.totalRevenue),
         ])
         const prodAoA = [prodHeaders, ...prodData]
         const wsProd = XLSX.utils.aoa_to_sheet(prodAoA)
@@ -539,8 +539,8 @@ const ReportsPage = () => {
         const custHeaders = ['Cliente', 'Compras', 'Total Gastado']
         const custData = topCustomers.map((c) => [
           c.customerName,
-          safeNumber(c.totalPurchases),
-          safeNumber(c.totalSpent),
+          safeNum(c.totalPurchases),
+          safeNum(c.totalSpent),
         ])
         const custAoA = [custHeaders, ...custData]
         const wsCust = XLSX.utils.aoa_to_sheet(custAoA)
