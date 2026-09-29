@@ -5,6 +5,8 @@ import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
 import { userService, CreateUserRequest } from '@/core/api/userService'
 import { User, Role } from '@/types'
+import { useSortableTable } from '@/shared/hooks/useSortableTable'
+import SortableHeader from '@/shared/components/ui/SortableHeader'
 
 const MODULE_PERMISSIONS: Record<string, { label: string; color: string; permissions: string[] }> = {
   pos: { label: 'POS', color: 'bg-green-100 text-green-700', permissions: ['pos.sell', 'pos.discount', 'pos.void'] },
@@ -212,7 +214,13 @@ const UsersPage = () => {
       u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'es', { sensitivity: 'base' }))
+
+  const { sortedItems: sortedUsers, sort, toggleSort } = useSortableTable(filteredUsers, {
+    usuario: (u) => u.fullName || '',
+    email: (u) => u.email || '',
+    rol: (u) => u.role?.name || '',
+    estado: (u) => (u.isActive ? 1 : 0),
+  }, { key: 'usuario', direction: 'asc' })
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -250,15 +258,15 @@ const UsersPage = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-primary-50">
-                <th className="table-header">Usuario</th>
-                <th className="table-header">Email</th>
-                <th className="table-header">Rol</th>
-                <th className="table-header text-center">Estado</th>
+                <SortableHeader label="Usuario" columnKey="usuario" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Email" columnKey="email" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Rol" columnKey="rol" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Estado" columnKey="estado" sort={sort} onToggle={toggleSort} className="text-center" />
                 <th className="table-header text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
+              {sortedUsers.map((user) => (
                 <tr key={user.id} className="hover:bg-primary-50/50 transition-colors">
                   <td className="table-cell">
                     <div className="flex items-center gap-3">

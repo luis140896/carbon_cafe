@@ -172,8 +172,20 @@ public class ProductService {
         if (request.getProductType() != null) product.setProductType(parseProductType(request.getProductType()));
         if (request.getTaxRate() != null) product.setTaxRate(request.getTaxRate());
         if (request.getIsActive() != null) product.setIsActive(request.getIsActive());
-        
+
+        // Garantizar registro de inventario (productos creados fuera del flujo normal)
         Product savedProduct = productRepository.save(product);
+        if (inventoryRepository.findByProductId(id).isEmpty()) {
+            Inventory inventory = Inventory.builder()
+                    .product(savedProduct)
+                    .quantity(BigDecimal.ZERO)
+                    .minStock(BigDecimal.ZERO)
+                    .maxStock(new BigDecimal("999999"))
+                    .build();
+            inventoryRepository.save(inventory);
+            savedProduct.setInventory(inventory);
+            log.warn("Se creó registro de inventario faltante para producto ID: {}", id);
+        }
         log.info("Producto actualizado ID: {}", id);
         return ProductResponse.fromEntity(savedProduct);
     }

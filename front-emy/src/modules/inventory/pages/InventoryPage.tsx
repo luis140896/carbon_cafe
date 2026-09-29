@@ -8,7 +8,9 @@ import { inventoryService } from '@/core/api/inventoryService'
 import { productService } from '@/core/api/productService'
 import { categoryService } from '@/core/api/categoryService'
 import { Inventory, Category } from '@/types'
-import { formatQuantity } from '@/shared/utils/formatQuantity'
+import { formatQuantity, toQty } from '@/shared/utils/formatQuantity'
+import { useSortableTable } from '@/shared/hooks/useSortableTable'
+import SortableHeader from '@/shared/components/ui/SortableHeader'
 
 interface AdjustModalData {
   inventory: Inventory
@@ -141,7 +143,17 @@ const InventoryPage = () => {
     if (filterStatus === 'low' && !(i.quantity > 0 && i.quantity <= i.minStock)) return false
     if (filterStatus === 'normal' && (i.quantity === 0 || i.quantity <= i.minStock)) return false
     return true
-  }).sort((a: any, b: any) => getProductName(a).localeCompare(getProductName(b), 'es', { sensitivity: 'base' }))
+  })
+
+  const { sortedItems: sortedInventory, sort, toggleSort } = useSortableTable<Inventory>(filteredInventory, {
+    codigo: (i) => getProductCode(i),
+    producto: (i) => getProductName(i),
+    stock: (i) => Number(i.quantity) || 0,
+    minimo: (i) => Number(i.minStock) || 0,
+    maximo: (i) => Number(i.maxStock) || 0,
+    ubicacion: (i) => i.location || '',
+    estado: (i) => (i.quantity === 0 ? 0 : i.quantity <= i.minStock ? 1 : 2),
+  }, { key: 'producto', direction: 'asc' })
 
   const activeFilterCount = (filterCategory ? 1 : 0) + (filterStatus !== 'all' ? 1 : 0)
 
@@ -154,7 +166,7 @@ const InventoryPage = () => {
   const handleAdjust = async () => {
     if (!adjustModal || !adjustQuantity) return
     
-    const qty = parseFloat(adjustQuantity)
+    const qty = toQty(parseFloat(adjustQuantity))
     if (qty <= 0) {
       toast.error('La cantidad debe ser mayor a 0')
       return
@@ -418,15 +430,16 @@ const InventoryPage = () => {
       )
 
       // Ajuste directo de stock actual: registra movimiento de Entrada/Salida
-      const currentQty = Number(editingItem.quantity) || 0
-      const newQty = Number(formData.stockQuantity)
-      if (!Number.isNaN(newQty) && newQty !== currentQty) {
+      const currentQty = toQty(editingItem.quantity) || 0
+      const newQty = toQty(formData.stockQuantity)
+      const delta = toQty(newQty - currentQty)
+      if (!Number.isNaN(newQty) && delta !== 0) {
         if (newQty < 0) {
           toast.error('El stock no puede ser negativo')
-        } else if (newQty > currentQty) {
-          await inventoryService.addStock(productId, newQty - currentQty, 'Ajuste manual desde edición')
+        } else if (delta > 0) {
+          await inventoryService.addStock(productId, delta, 'Ajuste manual desde edición')
         } else {
-          await inventoryService.removeStock(productId, currentQty - newQty, 'Ajuste manual desde edición')
+          await inventoryService.removeStock(productId, Math.abs(delta), 'Ajuste manual desde edición')
         }
       }
       
@@ -573,18 +586,18 @@ const InventoryPage = () => {
             <table className="w-full min-w-[900px]">
             <thead>
               <tr className="bg-primary-50">
-                <th className="table-header">Código</th>
-                <th className="table-header">Producto</th>
-                <th className="table-header text-center">Stock Actual</th>
-                <th className="table-header text-center">Mínimo</th>
-                <th className="table-header text-center">Máximo</th>
-                <th className="table-header">Ubicación</th>
-                <th className="table-header text-center">Estado</th>
+                <SortableHeader label="Código" columnKey="codigo" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Producto" columnKey="producto" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Stock Actual" columnKey="stock" sort={sort} onToggle={toggleSort} className="text-center" />
+                <SortableHeader label="Mínimo" columnKey="minimo" sort={sort} onToggle={toggleSort} className="text-center" />
+                <SortableHeader label="Máximo" columnKey="maximo" sort={sort} onToggle={toggleSort} className="text-center" />
+                <SortableHeader label="Ubicación" columnKey="ubicacion" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Estado" columnKey="estado" sort={sort} onToggle={toggleSort} className="text-center" />
                 <th className="table-header text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filteredInventory.map((item) => {
+              {sortedInventory.map((item) => {
                 const status = getStockStatus(item)
                 return (
                   <tr key={item.id} className="hover:bg-primary-50/50 transition-colors">

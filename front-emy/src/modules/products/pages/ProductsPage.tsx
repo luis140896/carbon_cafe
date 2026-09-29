@@ -8,7 +8,9 @@ import { productService } from '@/core/api/productService'
 import { categoryService } from '@/core/api/categoryService'
 import { inventoryService } from '@/core/api/inventoryService'
 import { Product, Category } from '@/types'
-import { formatQuantity } from '@/shared/utils/formatQuantity'
+import { formatQuantity, toQty } from '@/shared/utils/formatQuantity'
+import { useSortableTable } from '@/shared/hooks/useSortableTable'
+import SortableHeader from '@/shared/components/ui/SortableHeader'
 
 interface ProductFormData {
   code: string
@@ -199,7 +201,7 @@ const ProductsPage = () => {
   const handleStockAdjust = async () => {
     if (!stockAdjust || !adjustQuantity) return
     
-    const qty = parseFloat(adjustQuantity)
+    const qty = toQty(parseFloat(adjustQuantity))
     if (qty <= 0) {
       toast.error('La cantidad debe ser mayor a 0')
       return
@@ -294,15 +296,16 @@ const ProductsPage = () => {
         }
 
         // Ajuste directo de stock actual: registra movimiento de entrada/salida
-        const currentQty = selectedProduct.inventory?.quantity ?? 0
-        const newQty = Number(formData.initialStock)
-        if (!Number.isNaN(newQty) && newQty !== currentQty) {
+        const currentQty = toQty(selectedProduct.inventory?.quantity ?? 0)
+        const newQty = toQty(formData.initialStock)
+        const delta = toQty(newQty - currentQty)
+        if (!Number.isNaN(newQty) && delta !== 0) {
           if (newQty < 0) {
             toast.error('El stock no puede ser negativo')
-          } else if (newQty > currentQty) {
-            await inventoryService.addStock(selectedProduct.id, newQty - currentQty, 'Ajuste manual desde edición')
+          } else if (delta > 0) {
+            await inventoryService.addStock(selectedProduct.id, delta, 'Ajuste manual desde edición')
           } else {
-            await inventoryService.removeStock(selectedProduct.id, currentQty - newQty, 'Ajuste manual desde edición')
+            await inventoryService.removeStock(selectedProduct.id, Math.abs(delta), 'Ajuste manual desde edición')
           }
         }
         toast.success('Producto actualizado')
@@ -345,7 +348,16 @@ const ProductsPage = () => {
       if (filterStatus === 'inactive' && p.isActive) return false
       return true
     })
-    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
+
+  const { sortedItems: sortedProducts, sort, toggleSort } = useSortableTable<Product>(filteredProducts, {
+    codigo: (p) => p.code || '',
+    producto: (p) => p.name || '',
+    categoria: (p) => p.category?.name || (p as any).categoryName || '',
+    costo: (p) => Number(p.costPrice) || 0,
+    precio: (p) => Number(p.salePrice) || 0,
+    margen: (p) => (p.costPrice > 0 ? (p.salePrice - p.costPrice) / p.costPrice : 0),
+    stock: (p) => Number(p.inventory?.quantity) || 0,
+  }, { key: 'producto', direction: 'asc' })
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -437,18 +449,18 @@ const ProductsPage = () => {
             <table className="w-full min-w-[1000px]">
             <thead>
               <tr className="bg-primary-50">
-                <th className="table-header">Código</th>
-                <th className="table-header">Producto</th>
-                <th className="table-header">Categoría</th>
-                <th className="table-header text-right">Costo</th>
-                <th className="table-header text-right">Precio Venta</th>
-                <th className="table-header text-right">Margen</th>
-                <th className="table-header text-center">Stock</th>
+                <SortableHeader label="Código" columnKey="codigo" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Producto" columnKey="producto" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Categoría" columnKey="categoria" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Costo" columnKey="costo" sort={sort} onToggle={toggleSort} className="text-right" />
+                <SortableHeader label="Precio Venta" columnKey="precio" sort={sort} onToggle={toggleSort} className="text-right" />
+                <SortableHeader label="Margen" columnKey="margen" sort={sort} onToggle={toggleSort} className="text-right" />
+                <SortableHeader label="Stock" columnKey="stock" sort={sort} onToggle={toggleSort} className="text-center" />
                 <th className="table-header text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((product) => {
+              {sortedProducts.map((product) => {
                 const margin = product.costPrice > 0 
                   ? ((product.salePrice - product.costPrice) / product.costPrice * 100).toFixed(1)
                   : '0'
@@ -769,7 +781,7 @@ const ProductsPage = () => {
                 )}
               </div>
               <div>
-                <p className="font-medium text-gray-800">{stockAdjust.product.name}</p>formatQuantity()
+                <p className="font-medium text-gray-800">{stockAdjust.product.name}</p>formatQuantitformatQuantity(y())
                 <p className="text-sm text-gray-500">Stock actual: <span className="font-semibold">{stockAdjust.product.inventory?.quantity || 0}</span></p>
               </div>
             </div>

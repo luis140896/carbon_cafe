@@ -5,6 +5,8 @@ import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
 import { roleService, CreateRoleRequest } from '@/core/api/roleService'
 import { Role } from '@/types'
+import { useSortableTable } from '@/shared/hooks/useSortableTable'
+import SortableHeader from '@/shared/components/ui/SortableHeader'
 
 type ModuleKey =
   | 'dashboard'
@@ -172,8 +174,12 @@ const RolesPage = () => {
     const t = searchTerm.toLowerCase()
     return roles
       .filter((r) => r.name.toLowerCase().includes(t) || (r.description || '').toLowerCase().includes(t))
-      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
   }, [roles, searchTerm])
+
+  const { sortedItems: sortedRoles, sort, toggleSort } = useSortableTable(filteredRoles, {
+    rol: (r) => r.name || '',
+    sistema: (r) => (r.isSystem ? 1 : 0),
+  }, { key: 'rol', direction: 'asc' })
 
   const getModuleBadges = (role: Role) => {
     const perms = role.permissions || []
@@ -219,14 +225,14 @@ const RolesPage = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-primary-50">
-                <th className="table-header">Rol</th>
+                <SortableHeader label="Rol" columnKey="rol" sort={sort} onToggle={toggleSort} />
                 <th className="table-header">Módulos</th>
-                <th className="table-header text-center">Sistema</th>
+                <SortableHeader label="Sistema" columnKey="sistema" sort={sort} onToggle={toggleSort} className="text-center" />
                 <th className="table-header text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filteredRoles.map((role) => {
+              {sortedRoles.map((role) => {
                 const mods = getModuleBadges(role)
                 return (
                   <tr key={role.id} className="hover:bg-primary-50/50 transition-colors">

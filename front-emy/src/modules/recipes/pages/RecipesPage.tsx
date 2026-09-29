@@ -6,6 +6,8 @@ import Input from '@/shared/components/ui/Input'
 import { recipeService } from '@/core/api/recipeService'
 import { productService } from '@/core/api/productService'
 import { Recipe, RecipeItem, Product } from '@/types'
+import { useSortableTable } from '@/shared/hooks/useSortableTable'
+import SortableHeader from '@/shared/components/ui/SortableHeader'
 
 type RecipeItemForm = Omit<RecipeItem, 'quantity' | 'wastePercent'> & {
   quantity: number | string
@@ -131,6 +133,12 @@ const RecipesPage = () => {
     (r.productName || '').toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const { sortedItems: sortedRecipes, sort, toggleSort } = useSortableTable(filtered, {
+    producto: (r) => r.productName || '',
+    rendimiento: (r) => Number(r.yieldQty) || 0,
+    ingredientes: (r) => r.items?.length || 0,
+  }, { key: 'producto', direction: 'asc' })
+
   return (
     <div className="space-y-6 animate-fade-in p-6">
       <div className="flex items-center justify-between">
@@ -167,14 +175,14 @@ const RecipesPage = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-primary-50">
-                <th className="table-header">Producto</th>
-                <th className="table-header">Rendimiento</th>
-                <th className="table-header">Ingredientes</th>
+                <SortableHeader label="Producto" columnKey="producto" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Rendimiento" columnKey="rendimiento" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Ingredientes" columnKey="ingredientes" sort={sort} onToggle={toggleSort} />
                 <th className="table-header text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(r => (
+              {sortedRecipes.map(r => (
                 <tr key={r.id} className="hover:bg-primary-50/50 transition-colors">
                   <td className="table-cell font-medium">{r.productName || r.productId}</td>
                   <td className="table-cell">{r.yieldQty}</td>

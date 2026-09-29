@@ -120,6 +120,8 @@ public class StockDeductionService {
             if (entry.getValue().compareTo(BigDecimal.ZERO) <= 0) continue;
             if (inventoryRepository.findByProductId(entry.getKey()).isPresent()) {
                 inventoryService.removeStock(entry.getKey(), entry.getValue(), reason, user);
+            } else {
+                log.warn("Deducción omitida: producto id={} no tiene registro de inventario", entry.getKey());
             }
         }
     }
@@ -132,6 +134,8 @@ public class StockDeductionService {
             if (entry.getValue().compareTo(BigDecimal.ZERO) <= 0) continue;
             if (inventoryRepository.findByProductId(entry.getKey()).isPresent()) {
                 inventoryService.addStock(entry.getKey(), entry.getValue(), reason, user);
+            } else {
+                log.warn("Restauración omitida: producto id={} no tiene registro de inventario", entry.getKey());
             }
         }
     }

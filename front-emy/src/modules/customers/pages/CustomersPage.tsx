@@ -5,6 +5,8 @@ import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
 import { customerService } from '@/core/api/customerService'
 import { Customer } from '@/types'
+import { useSortableTable } from '@/shared/hooks/useSortableTable'
+import SortableHeader from '@/shared/components/ui/SortableHeader'
 
 interface CustomerFormData {
   documentType: string
@@ -80,6 +82,13 @@ const CustomersPage = () => {
       console.error('Error searching customers:', error)
     }
   }
+
+  const { sortedItems: sortedCustomers, sort, toggleSort } = useSortableTable(customers, {
+    cliente: (c) => c.fullName || '',
+    documento: (c) => `${c.documentType || ''}${c.documentNumber || ''}`,
+    telefono: (c) => c.phone || '',
+    email: (c) => c.email || '',
+  }, { key: 'cliente', direction: 'asc' })
 
   const openNewCustomer = () => {
     setSelectedCustomer(null)
@@ -223,15 +232,15 @@ const CustomersPage = () => {
           <table className="w-full">
             <thead>
               <tr className="bg-primary-50">
-                <th className="table-header">Cliente</th>
-                <th className="table-header">Documento</th>
-                <th className="table-header">Teléfono</th>
-                <th className="table-header">Email</th>
+                <SortableHeader label="Cliente" columnKey="cliente" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Documento" columnKey="documento" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Teléfono" columnKey="telefono" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Email" columnKey="email" sort={sort} onToggle={toggleSort} />
                 <th className="table-header text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer) => (
+              {sortedCustomers.map((customer) => (
                 <tr key={customer.id} className="hover:bg-primary-50/50 transition-colors">
                   <td className="table-cell font-medium">{customer.fullName}</td>
                   <td className="table-cell">{customer.documentType} {customer.documentNumber}</td>
