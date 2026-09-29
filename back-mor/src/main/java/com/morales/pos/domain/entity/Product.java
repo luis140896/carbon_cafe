@@ -1,5 +1,6 @@
 package com.morales.pos.domain.entity;
 
+import com.morales.pos.domain.enums.ProductType;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -45,6 +46,11 @@ public class Product extends BaseEntity {
     @Column(name = "unit", length = 20)
     @Builder.Default
     private String unit = "UNIDAD";
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "product_type", length = 20, nullable = false)
+    @Builder.Default
+    private ProductType productType = ProductType.DIRECTO;
 
     @Column(name = "tax_rate", precision = 5, scale = 2)
     @Builder.Default

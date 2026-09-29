@@ -12,6 +12,7 @@ import POSPage from '@/modules/pos/pages/POSPage'
 import ProductsPage from '@/modules/products/pages/ProductsPage'
 import CategoriesPage from '@/modules/categories/pages/CategoriesPage'
 import InventoryPage from '@/modules/inventory/pages/InventoryPage'
+import RecipesPage from '@/modules/recipes/pages/RecipesPage'
 import InvoicesPage from '@/modules/invoices/pages/InvoicesPage'
 import CustomersPage from '@/modules/customers/pages/CustomersPage'
 import ReportsPage from '@/modules/reports/pages/ReportsPage'
@@ -159,6 +160,14 @@ function App() {
             element={
               <RoleGuard requiredPermissions={['inventory.view']}>
                 <InventoryPage />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="/recipes"
+            element={
+              <RoleGuard requiredPermissions={['inventory.view']}>
+                <RecipesPage />
               </RoleGuard>
             }
           />

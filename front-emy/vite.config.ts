@@ -13,7 +13,7 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     strictPort: true,
-    allowedHosts: ['batteries-messenger-moon-thereof.trycloudflare.com'],
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

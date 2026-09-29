@@ -34,6 +34,7 @@ public class InvoiceService {
     private final CustomerRepository customerRepository;
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
+    private final StockDeductionService stockDeductionService;
     private final SseService sseService;
     private final NotificationService notificationService;
 
@@ -93,19 +94,14 @@ public class InvoiceService {
     @Transactional
     public InvoiceResponse createSale(CreateSaleRequest request, User user) {
 
-        // ── 1. PRE-VALIDACIÓN DE STOCK ──────────────────────────────────────────
-        // Antes de crear nada, verificamos que haya stock suficiente para TODOS
-        // los productos. Si alguno falla, se lanza excepción y no se guarda nada.
-        for (CreateSaleRequest.SaleDetailRequest detail : request.getDetails()) {
-            Inventory inventory = inventoryService.findEntityByProductId(detail.getProductId());
-            if (inventory.getQuantity().compareTo(detail.getQuantity()) < 0) {
-                Product product = productRepository.findById(detail.getProductId())
-                        .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado"));
-                throw new IllegalArgumentException(
-                        String.format("Stock insuficiente para %s. Disponible: %s, Solicitado: %s",
-                                product.getName(), inventory.getQuantity(), detail.getQuantity()));
-            }
-        }
+        // ── 1. PRE-VALIDACIÓN DE STOCK (con expansión de recetas) ───────────────
+        // Para productos PREPARADOS se expanden sus ingredientes; para DIRECTOS se
+        // valida el propio producto. Si algo falta, se lanza excepción y no se guarda nada.
+        List<StockDeductionService.SaleLine> stockLines = request.getDetails().stream()
+                .map(d -> new StockDeductionService.SaleLine(d.getProductId(), d.getQuantity()))
+                .toList();
+        Map<Long, BigDecimal> requiredStock = stockDeductionService.computeRequired(stockLines);
+        stockDeductionService.validate(requiredStock);
 
         // ── 2. NÚMERO DE FACTURA ────────────────────────────────────────────────
         // Genera un número único con formato V{MMDD}-{secuencia}, ej: V0221-0003
@@ -172,15 +168,10 @@ public class InvoiceService {
             taxAmount = taxAmount.add(lineTax);
 
             invoiceDetailRepository.save(detail);
-
-            // Descontar stock inmediatamente al registrar la venta
-            inventoryService.removeStock(
-                    product.getId(),
-                    detail.getQuantity(),
-                    "Venta - Factura " + invoiceNumber,
-                    user
-            );
         }
+
+        // Descontar stock (ingredientes de preparados + productos directos) en una sola pasada
+        stockDeductionService.deduct(requiredStock, "Venta - Factura " + invoiceNumber, user);
 
         // ── 6. CÁLCULO DE TOTALES ───────────────────────────────────────────────
         // Descuento global sobre el subtotal acumulado (porcentaje aplicado al total)

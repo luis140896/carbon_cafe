@@ -114,6 +114,7 @@ public class ProductService {
                 .costPrice(request.getCostPrice())
                 .salePrice(request.getSalePrice())
                 .unit(request.getUnit())
+                .productType(parseProductType(request.getProductType()))
                 .taxRate(request.getTaxRate())
                 .isActive(request.getIsActive())
                 .build();
@@ -162,6 +163,7 @@ public class ProductService {
         if (request.getCostPrice() != null) product.setCostPrice(request.getCostPrice());
         if (request.getSalePrice() != null) product.setSalePrice(request.getSalePrice());
         if (request.getUnit() != null) product.setUnit(request.getUnit());
+        if (request.getProductType() != null) product.setProductType(parseProductType(request.getProductType()));
         if (request.getTaxRate() != null) product.setTaxRate(request.getTaxRate());
         if (request.getIsActive() != null) product.setIsActive(request.getIsActive());
         
@@ -190,6 +192,17 @@ public class ProductService {
         return productRepository.findOutOfStockProducts().stream()
                 .map(ProductResponse::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    private com.morales.pos.domain.enums.ProductType parseProductType(String type) {
+        if (type == null || type.isBlank()) {
+            return com.morales.pos.domain.enums.ProductType.DIRECTO;
+        }
+        try {
+            return com.morales.pos.domain.enums.ProductType.valueOf(type.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return com.morales.pos.domain.enums.ProductType.DIRECTO;
+        }
     }
 
     private String generateProductCode() {

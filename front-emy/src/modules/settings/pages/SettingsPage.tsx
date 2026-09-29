@@ -51,6 +51,14 @@ const SettingsPage = () => {
         delete newErrors.phone
       }
     }
+
+    if (field === 'whatsapp' && typeof value === 'string') {
+      if (!validatePhone(value)) {
+        newErrors.whatsapp = 'WhatsApp debe contener solo números'
+      } else {
+        delete newErrors.whatsapp
+      }
+    }
     
     if (field === 'taxId' && typeof value === 'string') {
       if (!validateTaxId(value)) {
@@ -165,6 +173,11 @@ const SettingsPage = () => {
               <Input label="Teléfono" value={company.phone}
                 onChange={(e) => handleCompanyChange('phone', e.target.value)} />
               {errors.phone && <p className="text-xs text-red-500 mt-1">{errors.phone}</p>}
+            </div>
+            <div>
+              <Input label="WhatsApp" value={company.whatsapp} placeholder="Ej: 300 123 4567"
+                onChange={(e) => handleCompanyChange('whatsapp', e.target.value)} />
+              {errors.whatsapp && <p className="text-xs text-red-500 mt-1">{errors.whatsapp}</p>}
             </div>
             <div>
               <Input label="Email" type="email" value={company.email}

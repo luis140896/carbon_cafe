@@ -73,6 +73,9 @@ public class CompanyConfig {
     @Column(name = "phone", length = 50)
     private String phone;
 
+    @Column(name = "whatsapp", length = 50)
+    private String whatsapp;
+
     @Column(name = "email", length = 100)
     private String email;
 

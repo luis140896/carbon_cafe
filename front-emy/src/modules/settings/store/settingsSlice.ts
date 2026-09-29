@@ -19,6 +19,7 @@ interface CompanyConfig {
   taxRate: number
   address: string
   phone: string
+  whatsapp: string
   email: string
 }
 
@@ -70,6 +71,7 @@ const defaultState: SettingsState = {
     taxRate: 19,
     address: '',
     phone: '',
+    whatsapp: '',
     email: '',
   },
   businessType: 'GENERAL',
@@ -95,6 +97,7 @@ const mapBackendToState = (data: any): Partial<SettingsState> => ({
     taxRate: data.taxRate != null ? Number(data.taxRate) : 19,
     address: data.address || '',
     phone: data.phone || '',
+    whatsapp: data.whatsapp || '',
     email: data.email || '',
   },
   businessType: data.businessType || 'GENERAL',
@@ -125,6 +128,7 @@ export const saveSettingsToBackend = createAsyncThunk('settings/save', async (_,
     taxRate: state.company.taxRate,
     address: state.company.address,
     phone: state.company.phone,
+    whatsapp: state.company.whatsapp,
     email: state.company.email,
   }
   const res = await settingsService.updateConfig(payload)

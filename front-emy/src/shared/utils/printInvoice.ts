@@ -96,35 +96,36 @@ const thermalCSS = `
     padding: 1mm 0.5mm;
     width: 54mm;
     max-width: 54mm;
-    font-size: 8px;
-    line-height: 1.2;
+    font-size: 10px;
+    line-height: 1.25;
     color: #000000 !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 600;
   }
   .header { text-align: center; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 6px; }
-  .header h1 { margin: 0 0 2px; font-size: 14px; text-transform: uppercase; font-weight: 900; color: #000000 !important; }
-  .header .invoice-num { font-size: 12px; font-weight: 900; color: #000000 !important; }
-  .header p { margin: 1px 0; font-size: 10px; color: #000000 !important; font-weight: 600; }
+  .header h1 { margin: 0 0 2px; font-size: 17px; text-transform: uppercase; font-weight: 900; color: #000000 !important; }
+  .header .invoice-num { font-size: 14px; font-weight: 900; color: #000000 !important; }
+  .header p { margin: 1px 0; font-size: 11px; color: #000000 !important; font-weight: 600; }
+  .header p.whatsapp { font-weight: 900; }
   .pre-bill-banner { text-align: center; font-size: 13px; font-weight: 900; border: 2px dashed #000; padding: 4px; margin-bottom: 6px; text-transform: uppercase; color: #000000 !important; }
   .info { margin-bottom: 6px; }
-  .info div { margin: 1px 0; font-size: 11px; color: #000000 !important; font-weight: 600; }
+  .info div { margin: 1px 0; font-size: 12px; color: #000000 !important; font-weight: 600; }
   .items { border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin: 4px 0; }
-  .item { display: flex; justify-content: space-between; margin: 1px 0; font-size: 9px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
+  .item { display: flex; justify-content: space-between; margin: 1px 0; font-size: 11px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
   .item span:first-child { flex: 1; margin-right: 1px; }
   .item span:last-child { flex-shrink: 0; text-align: right; }
-  .item-notes { font-size: 9px; color: #000000 !important; margin-left: 8px; margin-bottom: 2px; font-weight: 500; }
-  .totals div { display: flex; justify-content: space-between; margin: 1px 0; font-size: 9px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
+  .item-notes { font-size: 10px; color: #000000 !important; margin-left: 8px; margin-bottom: 2px; font-weight: 500; }
+  .totals div { display: flex; justify-content: space-between; margin: 1px 0; font-size: 11px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
   .totals div span:first-child { flex: 1; margin-right: 1px; }
   .totals div span:last-child { flex-shrink: 0; text-align: right; }
-  .total-final { font-size: 12px; font-weight: 900; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; color: #000000 !important; }
+  .total-final { font-size: 15px; font-weight: 900; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; color: #000000 !important; }
   .payment-info { border-top: 1px dashed #000; margin-top: 6px; padding-top: 4px; }
-  .payment-info div { display: flex; justify-content: space-between; margin: 1px 0; color: #000000 !important; font-weight: 600; padding-right: 1mm; font-size: 9px; }
+  .payment-info div { display: flex; justify-content: space-between; margin: 1px 0; color: #000000 !important; font-weight: 600; padding-right: 1mm; font-size: 11px; }
   .payment-info div span:first-child { flex: 1; margin-right: 1px; }
   .payment-info div span:last-child { flex-shrink: 0; text-align: right; }
-  .footer { text-align: center; margin-top: 8px; font-size: 9px; color: #000000 !important; border-top: 1px dashed #000; padding-top: 6px; font-weight: 600; }
-  .cut-line { text-align: center; margin-top: 10px; font-size: 9px; color: #000000 !important; }
+  .footer { text-align: center; margin-top: 8px; font-size: 10px; color: #000000 !important; border-top: 1px dashed #000; padding-top: 6px; font-weight: 600; }
+  .cut-line { text-align: center; margin-top: 10px; font-size: 10px; color: #000000 !important; }
 `
 
 // ── Función principal ───────────────────────────────────────────────────────
@@ -138,6 +139,7 @@ export function printInvoice(inv: PrintableInvoice, options: PrintOptions = {}) 
   // Leer nombre de empresa desde configuración guardada en localStorage
   const settings = JSON.parse(localStorage.getItem('pos_settings') || '{}')
   const companyName = settings?.company?.companyName || 'Mi Empresa'
+  const whatsapp = settings?.company?.whatsapp || ''
   const { isPreBill = false } = options
 
   // Generar filas de productos: "cantidad x nombre" alineado con subtotal a la derecha
@@ -161,6 +163,7 @@ export function printInvoice(inv: PrintableInvoice, options: PrintOptions = {}) 
     <h1>${companyName}</h1>
     <div class="invoice-num">N° ${inv.invoiceNumber}</div>
     <p>${formatDate(inv.createdAt)}</p>
+    ${whatsapp ? `<p class="whatsapp">WhatsApp: ${whatsapp}</p>` : ''}
   </div>
   <div class="info">
     <div>Cliente: ${inv.customer?.fullName || inv.customerName || 'Cliente General'}</div>

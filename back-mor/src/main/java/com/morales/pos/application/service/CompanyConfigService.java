@@ -39,6 +39,7 @@ public class CompanyConfigService {
         if (updates.getTaxRate() != null) config.setTaxRate(updates.getTaxRate());
         if (updates.getAddress() != null) config.setAddress(updates.getAddress());
         if (updates.getPhone() != null) config.setPhone(updates.getPhone());
+        if (updates.getWhatsapp() != null) config.setWhatsapp(updates.getWhatsapp());
         if (updates.getEmail() != null) config.setEmail(updates.getEmail());
 
         return configRepository.save(config);

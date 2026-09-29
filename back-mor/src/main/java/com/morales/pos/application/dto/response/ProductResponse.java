@@ -26,6 +26,7 @@ public class ProductResponse {
     private BigDecimal costPrice;
     private BigDecimal salePrice;
     private String unit;
+    private String productType;
     private BigDecimal taxRate;
     private Boolean isActive;
     private BigDecimal profitMargin;
@@ -52,6 +53,7 @@ public class ProductResponse {
                 .costPrice(product.getCostPrice())
                 .salePrice(product.getSalePrice())
                 .unit(product.getUnit())
+                .productType(product.getProductType() != null ? product.getProductType().name() : "DIRECTO")
                 .taxRate(product.getTaxRate())
                 .isActive(product.getIsActive())
                 .profitMargin(product.getProfitMargin())

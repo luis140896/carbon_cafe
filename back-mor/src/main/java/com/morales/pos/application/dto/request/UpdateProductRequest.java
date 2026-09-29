@@ -41,6 +41,9 @@ public class UpdateProductRequest {
     @Size(max = 20, message = "La unidad no puede exceder 20 caracteres")
     private String unit;
 
+    @Size(max = 20, message = "El tipo de producto no puede exceder 20 caracteres")
+    private String productType;
+
     @DecimalMin(value = "0.0", inclusive = true, message = "La tasa de impuesto no puede ser negativa")
     @DecimalMax(value = "100.0", inclusive = true, message = "La tasa de impuesto no puede exceder 100%")
     private BigDecimal taxRate;

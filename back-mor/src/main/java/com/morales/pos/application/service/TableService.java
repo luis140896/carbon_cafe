@@ -34,6 +34,7 @@ public class TableService {
     private final ProductRepository productRepository;
     private final InventoryService inventoryService;
     private final InventoryRepository inventoryRepository;
+    private final StockDeductionService stockDeductionService;
     private final SseService sseService;
 
     // ==================== TABLE CRUD ====================
@@ -204,6 +205,13 @@ public class TableService {
             priorityReason = null;
         }
 
+        // Pre-validar stock expandiendo recetas de productos preparados
+        List<StockDeductionService.SaleLine> stockLines = request.getItems().stream()
+                .map(it -> new StockDeductionService.SaleLine(it.getProductId(), it.getQuantity()))
+                .collect(Collectors.toList());
+        Map<Long, BigDecimal> requiredStock = stockDeductionService.computeRequired(stockLines);
+        stockDeductionService.validate(requiredStock);
+
         for (AddTableItemsRequest.TableItemRequest item : request.getItems()) {
             Product product = productRepository.findById(item.getProductId())
                     .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado: " + item.getProductId()));
@@ -211,15 +219,6 @@ public class TableService {
             if (!product.getIsActive()) {
                 throw new IllegalArgumentException("El producto '" + product.getName() + "' no está activo");
             }
-
-            // Validate stock (skip if product has no inventory record)
-            inventoryRepository.findByProductId(product.getId()).ifPresent(inventory -> {
-                if (inventory.getQuantity().compareTo(item.getQuantity()) < 0) {
-                    throw new IllegalArgumentException(
-                            String.format("Stock insuficiente para %s. Disponible: %s, Solicitado: %s",
-                                    product.getName(), inventory.getQuantity(), item.getQuantity()));
-                }
-            });
 
             BigDecimal discountAmt = item.getDiscountAmount() != null ? item.getDiscountAmount() : BigDecimal.ZERO;
 
@@ -257,15 +256,11 @@ public class TableService {
             } catch (Exception e) {
                 log.error("Error creating kitchen order for detail {}: {}", savedDetail.getId(), e.getMessage());
             }
-
-            // Deduct stock immediately
-            inventoryService.removeStock(
-                    product.getId(),
-                    item.getQuantity(),
-                    "Mesa #" + session.getRestaurantTable().getTableNumber() + " - " + invoice.getInvoiceNumber(),
-                    user
-            );
         }
+
+        // Descontar stock agregado (ingredientes de preparados + productos directos)
+        stockDeductionService.deduct(requiredStock,
+                "Mesa #" + session.getRestaurantTable().getTableNumber() + " - " + invoice.getInvoiceNumber(), user);
 
         // Recalculate totals from all details in the invoice
         List<InvoiceDetail> allDetails = invoiceDetailRepository.findByInvoiceId(invoice.getId());
@@ -333,10 +328,9 @@ public class TableService {
             throw new IllegalArgumentException("El detalle no pertenece a esta mesa");
         }
 
-        // Restore stock
-        inventoryService.addStock(
-                detail.getProduct().getId(),
-                detail.getQuantity(),
+        // Restore stock (ingredientes de preparados + productos directos)
+        stockDeductionService.restore(
+                List.of(new StockDeductionService.SaleLine(detail.getProduct().getId(), detail.getQuantity())),
                 "Eliminado de Mesa #" + session.getRestaurantTable().getTableNumber(),
                 user
         );

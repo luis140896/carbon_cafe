@@ -18,6 +18,7 @@ interface ProductFormData {
   costPrice: number | ''
   salePrice: number | ''
   unit: string
+  productType: 'DIRECTO' | 'PREPARADO' | 'INSUMO'
   taxRate: number
   isActive: boolean
   initialStock: number
@@ -35,6 +36,7 @@ const initialFormData: ProductFormData = {
   costPrice: '',
   salePrice: '',
   unit: 'UND',
+  productType: 'DIRECTO',
   taxRate: 0,
   isActive: true,
   initialStock: 0,
@@ -164,6 +166,7 @@ const ProductsPage = () => {
       costPrice: product.costPrice,
       salePrice: product.salePrice,
       unit: product.unit || 'UND',
+      productType: product.productType || 'DIRECTO',
       taxRate: product.taxRate || 0,
       isActive: product.isActive,
       initialStock: product.inventory?.quantity || 0,
@@ -272,6 +275,7 @@ const ProductsPage = () => {
           costPrice: Number(formData.costPrice),
           salePrice: Number(formData.salePrice),
           unit: formData.unit,
+          productType: formData.productType,
           taxRate: Number(formData.taxRate),
           isActive: formData.isActive
         }
@@ -300,6 +304,7 @@ const ProductsPage = () => {
           costPrice: Number(formData.costPrice),
           salePrice: Number(formData.salePrice),
           unit: formData.unit,
+          productType: formData.productType,
           taxRate: Number(formData.taxRate),
           isActive: formData.isActive,
           initialStock: Number(formData.initialStock),
@@ -544,22 +549,37 @@ const ProductsPage = () => {
                 required
               />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
-                <select
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: Number(e.target.value) })}
-                  className="input-field"
-                  required
-                >
-                  <option value="">Seleccionar...</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
+                  <select
+                    value={formData.categoryId}
+                    onChange={(e) => setFormData({ ...formData, categoryId: Number(e.target.value) })}
+                    className="input-field"
+                    required
+                  >
+                    <option value="">Seleccione categoría</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de producto</label>
+                  <select
+                    value={formData.productType}
+                    onChange={(e) => setFormData({ ...formData, productType: e.target.value as ProductFormData['productType'] })}
+                    className="input-field"
+                  >
+                    <option value="DIRECTO">Directo (vende stock propio)</option>
+                    <option value="PREPARADO">Preparado (tiene receta)</option>
+                    <option value="INSUMO">Insumo (solo ingrediente)</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <MoneyInput
                   label="Precio Costo"
                   value={formData.costPrice}
@@ -572,6 +592,25 @@ const ProductsPage = () => {
                   onChange={(val) => setFormData({ ...formData, salePrice: val })}
                   required
                 />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
+                  <select
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="UNIDAD">Unidad</option>
+                    <option value="GRAMOS">Gramos</option>
+                    <option value="KILO">Kilo</option>
+                    <option value="LIBRA">Libra</option>
+                    <option value="LITRO">Litro</option>
+                    <option value="ML">Mililitro</option>
+                    <option value="PORCION">Porción</option>
+                    <option value="PAQUETE">Paquete</option>
+                    <option value="LATA">Lata</option>
+                    <option value="CAJA">Caja</option>
+                  </select>
+                </div>
               </div>
 
               {/* Imagen del producto */}

@@ -46,6 +46,10 @@ public class CreateProductRequest {
     @Builder.Default
     private String unit = "UND";
 
+    @Size(max = 20, message = "El tipo de producto no puede exceder 20 caracteres")
+    @Builder.Default
+    private String productType = "DIRECTO";
+
     @DecimalMin(value = "0.0", inclusive = true, message = "La tasa de impuesto no puede ser negativa")
     @DecimalMax(value = "100.0", inclusive = true, message = "La tasa de impuesto no puede exceder 100%")
     @Builder.Default
@@ -68,4 +72,7 @@ public class CreateProductRequest {
     private BigDecimal maxStock = new BigDecimal("999999");
 
     private String location;
+
+    @Builder.Default
+    private Boolean trackInventory = true;
 }

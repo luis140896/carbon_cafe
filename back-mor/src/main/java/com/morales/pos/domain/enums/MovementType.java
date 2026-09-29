@@ -6,5 +6,8 @@ public enum MovementType {
     AJUSTE,
     VENTA,
     DEVOLUCION,
-    TRANSFERENCIA
+    TRANSFERENCIA,
+    COMPRA,
+    MERMA,
+    PRODUCCION
 }

@@ -23,6 +23,7 @@ export interface Product {
   costPrice: number
   salePrice: number
   unit: string
+  productType?: 'DIRECTO' | 'PREPARADO' | 'INSUMO'
   taxRate: number
   isActive: boolean
   inventory?: Inventory
@@ -198,6 +199,27 @@ export interface Notification {
   isRead: boolean
   readAt?: string
   createdAt: string
+}
+
+export interface RecipeItem {
+  id?: number
+  ingredientProductId: number
+  ingredientProductName?: string
+  ingredientUnit?: string
+  quantity: number
+  wastePercent?: number
+  sortOrder?: number
+}
+
+export interface Recipe {
+  id?: number
+  productId: number
+  productName?: string
+  yieldQty: number
+  isActive?: boolean
+  items: RecipeItem[]
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface PaginatedResponse<T> {
