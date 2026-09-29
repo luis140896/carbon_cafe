@@ -8,6 +8,7 @@ import { productService } from '@/core/api/productService'
 import { categoryService } from '@/core/api/categoryService'
 import { inventoryService } from '@/core/api/inventoryService'
 import { Product, Category } from '@/types'
+import { formatQuantity } from '@/shared/utils/formatQuantity'
 
 interface ProductFormData {
   code: string
@@ -21,9 +22,9 @@ interface ProductFormData {
   productType: 'DIRECTO' | 'PREPARADO' | 'INSUMO'
   taxRate: number
   isActive: boolean
-  initialStock: number
-  minStock: number
-  maxStock: number
+  initialStock: number | string
+  minStock: number | string
+  maxStock: number | string
   imageUrl: string
 }
 
@@ -284,7 +285,7 @@ const ProductsPage = () => {
         // Actualizar límites de stock si cambiaron
         const currentMinStock = selectedProduct.inventory?.minStock || 0
         const currentMaxStock = selectedProduct.inventory?.maxStock || 999999
-        if (formData.minStock !== currentMinStock || formData.maxStock !== currentMaxStock) {
+        if (Number(formData.minStock) !== currentMinStock || Number(formData.maxStock) !== currentMaxStock) {
           await inventoryService.updateLimits(
             selectedProduct.id,
             Number(formData.minStock),
@@ -478,7 +479,7 @@ const ProductsPage = () => {
                           (product.inventory?.quantity || 0) <= (product.inventory?.minStock || 10) ? 'text-amber-600' :
                           'text-green-600'
                         }`}>
-                          {product.inventory?.quantity || 0}
+                          {formatQuantity(product.inventory?.quantity || 0)}
                         </span>
                         <button
                           onClick={() => openStockAdjust(product, 'add')}
@@ -666,23 +667,26 @@ const ProductsPage = () => {
                     label={selectedProduct ? "Stock Actual" : "Stock Inicial"}
                     type="number"
                     min="0"
+                    step="0.001"
                     value={formData.initialStock}
-                    onChange={(e) => setFormData({ ...formData, initialStock: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, initialStock: e.target.value })}
                     disabled={!!selectedProduct}
                   />
                   <Input
                     label="Stock Mínimo"
                     type="number"
                     min="0"
+                    step="0.001"
                     value={formData.minStock}
-                    onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
                   />
                   <Input
                     label="Stock Máximo"
                     type="number"
                     min="0"
+                    step="0.001"
                     value={formData.maxStock}
-                    onChange={(e) => setFormData({ ...formData, maxStock: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, maxStock: e.target.value })}
                   />
                 </div>
                 {selectedProduct && (
@@ -727,7 +731,7 @@ const ProductsPage = () => {
                 )}
               </div>
               <div>
-                <p className="font-medium text-gray-800">{stockAdjust.product.name}</p>
+                <p className="font-medium text-gray-800">{stockAdjust.product.name}</p>formatQuantity()
                 <p className="text-sm text-gray-500">Stock actual: <span className="font-semibold">{stockAdjust.product.inventory?.quantity || 0}</span></p>
               </div>
             </div>
@@ -736,8 +740,8 @@ const ProductsPage = () => {
               <Input
                 label="Cantidad *"
                 type="number"
-                min="0.01"
-                step="0.01"
+                min="0.001"
+                step="0.001"
                 value={adjustQuantity}
                 onChange={(e) => setAdjustQuantity(e.target.value)}
                 required

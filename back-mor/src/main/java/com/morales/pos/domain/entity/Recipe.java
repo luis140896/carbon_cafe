@@ -29,7 +29,7 @@ public class Recipe {
     @JoinColumn(name = "product_id", unique = true, nullable = false)
     private Product product;
 
-    @Column(name = "yield_qty", precision = 12, scale = 2, nullable = false)
+    @Column(name = "yield_qty", precision = 12, scale = 3, nullable = false)
     @Builder.Default
     private BigDecimal yieldQty = BigDecimal.ONE;
 

@@ -28,13 +28,13 @@ public class InventoryMovement {
     @Column(name = "movement_type", length = 20, nullable = false)
     private MovementType movementType;
 
-    @Column(name = "quantity", precision = 12, scale = 2, nullable = false)
+    @Column(name = "quantity", precision = 12, scale = 3, nullable = false)
     private BigDecimal quantity;
 
-    @Column(name = "previous_quantity", precision = 12, scale = 2)
+    @Column(name = "previous_quantity", precision = 12, scale = 3)
     private BigDecimal previousQuantity;
 
-    @Column(name = "new_quantity", precision = 12, scale = 2)
+    @Column(name = "new_quantity", precision = 12, scale = 3)
     private BigDecimal newQuantity;
 
     @Column(name = "reference_type", length = 50)

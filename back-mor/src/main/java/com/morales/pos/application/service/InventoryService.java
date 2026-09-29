@@ -75,6 +75,12 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse adjustStock(Long productId, BigDecimal quantity, MovementType type, String reason, User user) {
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) == 0) {
+            throw new IllegalArgumentException("La cantidad no puede ser nula ni cero");
+        }
+        if (quantity.stripTrailingZeros().scale() > 3) {
+            throw new IllegalArgumentException("La cantidad admite máximo 3 decimales");
+        }
         Inventory inventory = findEntityByProductId(productId);
         BigDecimal previousQuantity = inventory.getQuantity();
         BigDecimal newQuantity = previousQuantity.add(quantity);

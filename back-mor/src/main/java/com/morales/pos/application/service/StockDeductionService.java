@@ -86,6 +86,8 @@ public class StockDeductionService {
             required.merge(product.getId(), line.quantity(), BigDecimal::add);
         }
 
+        // Normalizar a 3 decimales (precisión de inventory/invoice_details)
+        required.replaceAll((id, qty) -> qty.setScale(3, RoundingMode.HALF_UP));
         return required;
     }
 

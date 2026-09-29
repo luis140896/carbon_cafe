@@ -32,7 +32,7 @@ public class InvoiceDetail {
     @Column(name = "product_name", length = 200)
     private String productName;
 
-    @Column(name = "quantity", precision = 12, scale = 2, nullable = false)
+    @Column(name = "quantity", precision = 12, scale = 3, nullable = false)
     private BigDecimal quantity;
 
     @Column(name = "unit_price", precision = 12, scale = 2, nullable = false)

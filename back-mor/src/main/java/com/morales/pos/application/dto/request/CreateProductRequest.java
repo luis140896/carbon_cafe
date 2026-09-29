@@ -60,14 +60,17 @@ public class CreateProductRequest {
 
     // Datos iniciales de inventario
     @DecimalMin(value = "0.0", inclusive = true, message = "La cantidad inicial no puede ser negativa")
+    @Digits(integer = 9, fraction = 3, message = "La cantidad inicial admite máximo 3 decimales")
     @Builder.Default
     private BigDecimal initialStock = BigDecimal.ZERO;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El stock mínimo no puede ser negativo")
+    @Digits(integer = 9, fraction = 3, message = "El stock mínimo admite máximo 3 decimales")
     @Builder.Default
     private BigDecimal minStock = BigDecimal.ZERO;
 
     @DecimalMin(value = "0.0", inclusive = true, message = "El stock máximo no puede ser negativo")
+    @Digits(integer = 9, fraction = 3, message = "El stock máximo admite máximo 3 decimales")
     @Builder.Default
     private BigDecimal maxStock = new BigDecimal("999999");
 

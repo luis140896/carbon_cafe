@@ -8,6 +8,7 @@ import { inventoryService } from '@/core/api/inventoryService'
 import { productService } from '@/core/api/productService'
 import { categoryService } from '@/core/api/categoryService'
 import { Inventory, Category } from '@/types'
+import { formatQuantity } from '@/shared/utils/formatQuantity'
 
 interface AdjustModalData {
   inventory: Inventory
@@ -567,11 +568,11 @@ const InventoryPage = () => {
                     <td className="table-cell font-medium">{getProductName(item)}</td>
                     <td className="table-cell text-center">
                       <span className={`font-bold ${item.quantity <= item.minStock ? 'text-red-600' : 'text-gray-800'}`}>
-                        {item.quantity}
+                        {formatQuantity(item.quantity)}
                       </span>
                     </td>
-                    <td className="table-cell text-center text-gray-500">{item.minStock}</td>
-                    <td className="table-cell text-center text-gray-500">{item.maxStock}</td>
+                    <td className="table-cell text-center text-gray-500">{formatQuantity(item.minStock)}</td>
+                    <td className="table-cell text-center text-gray-500">{formatQuantity(item.maxStock)}</td>
                     <td className="table-cell">{item.location || '-'}</td>
                     <td className="table-cell text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-white ${status.color}`}>
@@ -709,7 +710,7 @@ const InventoryPage = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Stock Actual</label>
                     <input
                       type="number"
-                      value={editingItem.quantity}
+                      value={formatQuantity(editingItem.quantity)}
                       className="input-field bg-gray-100"
                       disabled
                     />
@@ -762,15 +763,15 @@ const InventoryPage = () => {
 
             <div className="mb-4 p-3 bg-primary-50 rounded-lg">
               <p className="font-medium">{getProductName(adjustModal.inventory)}</p>
-              <p className="text-sm text-gray-500">Stock actual: {adjustModal.inventory.quantity}</p>
+              <p className="text-sm text-gray-500">Stock actual: {formatQuantity(adjustModal.inventory.quantity)}</p>
             </div>
 
             <div className="space-y-4">
               <Input
                 label="Cantidad *"
                 type="number"
-                min="0.01"
-                step="0.01"
+                min="0.001"
+                step="0.001"
                 value={adjustQuantity}
                 onChange={(e) => setAdjustQuantity(e.target.value)}
                 required

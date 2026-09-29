@@ -23,15 +23,15 @@ public class Inventory {
     @JoinColumn(name = "product_id", unique = true)
     private Product product;
 
-    @Column(name = "quantity", precision = 12, scale = 2)
+    @Column(name = "quantity", precision = 12, scale = 3)
     @Builder.Default
     private BigDecimal quantity = BigDecimal.ZERO;
 
-    @Column(name = "min_stock", precision = 12, scale = 2)
+    @Column(name = "min_stock", precision = 12, scale = 3)
     @Builder.Default
     private BigDecimal minStock = BigDecimal.ZERO;
 
-    @Column(name = "max_stock", precision = 12, scale = 2)
+    @Column(name = "max_stock", precision = 12, scale = 3)
     @Builder.Default
     private BigDecimal maxStock = BigDecimal.ZERO;
 
