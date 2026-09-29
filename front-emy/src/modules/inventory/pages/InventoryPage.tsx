@@ -24,10 +24,13 @@ interface ProductFormData {
   costPrice: number | ''
   salePrice: number | ''
   unit: string
+  productType: 'DIRECTO' | 'PREPARADO' | 'INSUMO'
   taxRate: number
   isActive: boolean
-  minStock: number
-  maxStock: number
+  minStock: number | string
+  maxStock: number | string
+  stockQuantity: number | string
+  location: string
   imageUrl: string
 }
 
@@ -40,10 +43,13 @@ const initialFormData: ProductFormData = {
   costPrice: '',
   salePrice: '',
   unit: 'UND',
+  productType: 'DIRECTO',
   taxRate: 0,
   isActive: true,
   minStock: 0,
   maxStock: 999999,
+  stockQuantity: 0,
+  location: '',
   imageUrl: ''
 }
 
@@ -205,10 +211,13 @@ const InventoryPage = () => {
         costPrice: product.costPrice || 0,
         salePrice: product.salePrice || 0,
         unit: product.unit || 'UND',
+        productType: product.productType || 'DIRECTO',
         taxRate: product.taxRate || 0,
         isActive: product.isActive ?? true,
         minStock: item.minStock || 0,
         maxStock: item.maxStock || 999999,
+        stockQuantity: item.quantity ?? 0,
+        location: item.location || '',
         imageUrl: product.imageUrl || ''
       })
       setShowEditModal(true)
@@ -393,18 +402,33 @@ const InventoryPage = () => {
         costPrice: Number(formData.costPrice),
         salePrice: Number(formData.salePrice),
         unit: formData.unit,
+        productType: formData.productType,
         taxRate: Number(formData.taxRate),
         isActive: formData.isActive
       }
       
       await productService.update(productId, updateData)
       
-      // Actualizar límites de stock
+      // Actualizar límites de stock y ubicación
       await inventoryService.updateLimits(
         productId,
         Number(formData.minStock),
-        Number(formData.maxStock)
+        Number(formData.maxStock),
+        formData.location
       )
+
+      // Ajuste directo de stock actual: registra movimiento de Entrada/Salida
+      const currentQty = Number(editingItem.quantity) || 0
+      const newQty = Number(formData.stockQuantity)
+      if (!Number.isNaN(newQty) && newQty !== currentQty) {
+        if (newQty < 0) {
+          toast.error('El stock no puede ser negativo')
+        } else if (newQty > currentQty) {
+          await inventoryService.addStock(productId, newQty - currentQty, 'Ajuste manual desde edición')
+        } else {
+          await inventoryService.removeStock(productId, currentQty - newQty, 'Ajuste manual desde edición')
+        }
+      }
       
       toast.success('Producto actualizado correctamente')
       setShowEditModal(false)
@@ -647,6 +671,16 @@ const InventoryPage = () => {
               />
 
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-field min-h-[60px]"
+                  placeholder="Descripción del producto..."
+                />
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
                 <select
                   value={formData.categoryId}
@@ -662,6 +696,40 @@ const InventoryPage = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de producto</label>
+                  <select
+                    value={formData.productType}
+                    onChange={(e) => setFormData({ ...formData, productType: e.target.value as ProductFormData['productType'] })}
+                    className="input-field"
+                  >
+                    <option value="DIRECTO">Directo (vende stock propio)</option>
+                    <option value="PREPARADO">Preparado (tiene receta)</option>
+                    <option value="INSUMO">Insumo (solo ingrediente)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
+                  <select
+                    value={formData.unit}
+                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                    className="input-field"
+                  >
+                    <option value="UNIDAD">Unidad</option>
+                    <option value="GRAMOS">Gramos</option>
+                    <option value="KILO">Kilo</option>
+                    <option value="LIBRA">Libra</option>
+                    <option value="LITRO">Litro</option>
+                    <option value="ML">Mililitro</option>
+                    <option value="PORCION">Porción</option>
+                    <option value="PAQUETE">Paquete</option>
+                    <option value="LATA">Lata</option>
+                    <option value="CAJA">Caja</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
                 <Input
                   label="Precio Costo *"
                   type="number"
@@ -680,7 +748,26 @@ const InventoryPage = () => {
                   onChange={(e) => setFormData({ ...formData, salePrice: e.target.value ? Number(e.target.value) : '' })}
                   required
                 />
+                <Input
+                  label="Impuesto %"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={formData.taxRate}
+                  onChange={(e) => setFormData({ ...formData, taxRate: e.target.value ? Number(e.target.value) : 0 })}
+                />
               </div>
+
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="w-4 h-4 accent-primary-600"
+                />
+                <span className="text-sm font-medium text-gray-700">Producto activo</span>
+              </label>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Imagen del Producto</label>
@@ -706,32 +793,41 @@ const InventoryPage = () => {
               <div className="border-t pt-4">
                 <h4 className="font-medium text-gray-700 mb-3">Configuración de Stock</h4>
                 <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Stock Actual</label>
-                    <input
-                      type="number"
-                      value={formatQuantity(editingItem.quantity)}
-                      className="input-field bg-gray-100"
-                      disabled
-                    />
-                  </div>
+                  <Input
+                    label="Stock Actual"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={formData.stockQuantity}
+                    onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
+                  />
                   <Input
                     label="Stock Mínimo"
                     type="number"
                     min="0"
+                    step="0.001"
                     value={formData.minStock}
-                    onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
                   />
                   <Input
                     label="Stock Máximo"
                     type="number"
                     min="0"
+                    step="0.001"
                     value={formData.maxStock}
-                    onChange={(e) => setFormData({ ...formData, maxStock: Number(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, maxStock: e.target.value })}
                   />
                 </div>
-                <p className="text-xs text-amber-600 mt-2">
-                  Para modificar el stock actual, use los botones de Entrada/Salida
+                <div className="mt-3">
+                  <Input
+                    label="Ubicación"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    placeholder="Ej: Bodega A, Estante 3"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Cambiar el stock actual aquí o con los botones +/- registra un movimiento de Entrada/Salida con usuario y fecha.
                 </p>
               </div>
 

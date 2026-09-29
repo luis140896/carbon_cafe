@@ -292,6 +292,19 @@ const ProductsPage = () => {
             Number(formData.maxStock)
           )
         }
+
+        // Ajuste directo de stock actual: registra movimiento de entrada/salida
+        const currentQty = selectedProduct.inventory?.quantity ?? 0
+        const newQty = Number(formData.initialStock)
+        if (!Number.isNaN(newQty) && newQty !== currentQty) {
+          if (newQty < 0) {
+            toast.error('El stock no puede ser negativo')
+          } else if (newQty > currentQty) {
+            await inventoryService.addStock(selectedProduct.id, newQty - currentQty, 'Ajuste manual desde edición')
+          } else {
+            await inventoryService.removeStock(selectedProduct.id, currentQty - newQty, 'Ajuste manual desde edición')
+          }
+        }
         toast.success('Producto actualizado')
       } else {
         // Para creación, incluir datos de stock inicial
@@ -550,6 +563,16 @@ const ProductsPage = () => {
                 required
               />
 
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="input-field min-h-[60px]"
+                  placeholder="Descripción del producto..."
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
@@ -614,6 +637,27 @@ const ProductsPage = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4 items-end">
+                <Input
+                  label="Impuesto %"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={formData.taxRate}
+                  onChange={(e) => setFormData({ ...formData, taxRate: e.target.value ? Number(e.target.value) : 0 })}
+                />
+                <label className="flex items-center gap-2 cursor-pointer pb-3">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="w-4 h-4 accent-primary-600"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Producto activo</span>
+                </label>
+              </div>
+
               {/* Imagen del producto */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Imagen del Producto</label>
@@ -670,7 +714,6 @@ const ProductsPage = () => {
                     step="0.001"
                     value={formData.initialStock}
                     onChange={(e) => setFormData({ ...formData, initialStock: e.target.value })}
-                    disabled={!!selectedProduct}
                   />
                   <Input
                     label="Stock Mínimo"
@@ -691,7 +734,7 @@ const ProductsPage = () => {
                 </div>
                 {selectedProduct && (
                   <p className="text-xs text-gray-500 mt-2">
-                    💡 También puedes ajustar el stock desde la tabla de productos usando los botones +/-
+                    Cambiar el stock actual aquí o con los botones +/- registra un movimiento de Entrada/Salida con usuario y fecha.
                   </p>
                 )}
               </div>

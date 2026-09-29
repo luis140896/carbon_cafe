@@ -134,7 +134,9 @@ public class InventoryService {
         Inventory inventory = findEntityByProductId(productId);
         inventory.setMinStock(minStock);
         inventory.setMaxStock(maxStock);
-        inventory.setLocation(location);
+        if (location != null) {
+            inventory.setLocation(location.isBlank() ? null : location);
+        }
         log.info("Límites de stock actualizados para producto ID: {}", productId);
         return InventoryResponse.fromEntity(inventoryRepository.save(inventory));
     }
