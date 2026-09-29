@@ -13,7 +13,7 @@ import java.util.Optional;
 @Repository
 public interface PromotionRepository extends JpaRepository<Promotion, Long> {
 
-    List<Promotion> findByIsActiveTrue();
+    List<Promotion> findByIsActiveTrueOrderByNameAsc();
 
     @Query("SELECT p FROM Promotion p WHERE p.isActive = true " +
            "AND (p.scheduleType = 'DAILY' " +

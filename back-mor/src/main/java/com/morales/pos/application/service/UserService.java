@@ -29,7 +29,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponse> findAll() {
-        return userRepository.findAll().stream()
+        return userRepository.findAll(org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Order.asc("fullName").ignoreCase())).stream()
                 .map(UserResponse::fromEntity)
                 .toList();
     }

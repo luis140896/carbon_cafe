@@ -21,7 +21,7 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
            "WHERE r.product.id = :productId")
     Optional<Recipe> findByProductIdWithItems(@Param("productId") Long productId);
 
-    @Query("SELECT DISTINCT r FROM Recipe r JOIN FETCH r.product")
+    @Query("SELECT r FROM Recipe r JOIN FETCH r.product p ORDER BY LOWER(p.name)")
     List<Recipe> findAllWithProduct();
 
     boolean existsByProductId(Long productId);

@@ -16,22 +16,22 @@ public interface InventoryRepository extends JpaRepository<Inventory, Long> {
 
     Optional<Inventory> findByProductId(Long productId);
 
-    @Query("SELECT i FROM Inventory i JOIN FETCH i.product")
+    @Query("SELECT i FROM Inventory i JOIN FETCH i.product p ORDER BY LOWER(p.name)")
     List<Inventory> findAllWithProduct();
 
     @Query("SELECT i FROM Inventory i JOIN FETCH i.product WHERE i.product.id = :productId")
     Optional<Inventory> findByProductIdWithProduct(@Param("productId") Long productId);
 
-    @Query("SELECT i FROM Inventory i JOIN FETCH i.product WHERE i.quantity <= i.minStock")
+    @Query("SELECT i FROM Inventory i JOIN FETCH i.product p WHERE i.quantity <= i.minStock ORDER BY LOWER(p.name)")
     List<Inventory> findLowStock();
 
-    @Query("SELECT i FROM Inventory i JOIN FETCH i.product WHERE i.quantity <= i.minStock AND i.product.isActive = true")
+    @Query("SELECT i FROM Inventory i JOIN FETCH i.product p WHERE i.quantity <= i.minStock AND p.isActive = true ORDER BY LOWER(p.name)")
     List<Inventory> findLowStockProducts();
 
-    @Query("SELECT i FROM Inventory i JOIN FETCH i.product WHERE i.quantity <= 0")
+    @Query("SELECT i FROM Inventory i JOIN FETCH i.product p WHERE i.quantity <= 0 ORDER BY LOWER(p.name)")
     List<Inventory> findOutOfStock();
 
-    @Query("SELECT i FROM Inventory i JOIN FETCH i.product WHERE i.quantity <= 0 AND i.product.isActive = true")
+    @Query("SELECT i FROM Inventory i JOIN FETCH i.product p WHERE i.quantity <= 0 AND p.isActive = true ORDER BY LOWER(p.name)")
     List<Inventory> findOutOfStockProducts();
 
     @Modifying

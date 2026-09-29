@@ -22,7 +22,8 @@ public class PromotionService {
 
     @Transactional(readOnly = true)
     public List<Promotion> getAllPromotions() {
-        return promotionRepository.findAll();
+        return promotionRepository.findAll(org.springframework.data.domain.Sort.by(
+                org.springframework.data.domain.Sort.Order.asc("name").ignoreCase()));
     }
 
     @Transactional(readOnly = true)
@@ -32,7 +33,7 @@ public class PromotionService {
 
     @Transactional(readOnly = true)
     public List<Promotion> getActivePromotions() {
-        return promotionRepository.findByIsActiveTrue();
+        return promotionRepository.findByIsActiveTrueOrderByNameAsc();
     }
 
     /**

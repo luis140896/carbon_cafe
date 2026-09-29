@@ -206,11 +206,13 @@ const UsersPage = () => {
     }
   }
 
-  const filteredUsers = users.filter(u =>
-    u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredUsers = users
+    .filter(u =>
+      u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => (a.fullName || '').localeCompare(b.fullName || '', 'es', { sensitivity: 'base' }))
 
   return (
     <div className="space-y-6 animate-fade-in">

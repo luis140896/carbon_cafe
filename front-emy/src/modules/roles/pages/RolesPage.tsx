@@ -170,7 +170,9 @@ const RolesPage = () => {
 
   const filteredRoles = useMemo(() => {
     const t = searchTerm.toLowerCase()
-    return roles.filter((r) => r.name.toLowerCase().includes(t) || (r.description || '').toLowerCase().includes(t))
+    return roles
+      .filter((r) => r.name.toLowerCase().includes(t) || (r.description || '').toLowerCase().includes(t))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
   }, [roles, searchTerm])
 
   const getModuleBadges = (role: Role) => {

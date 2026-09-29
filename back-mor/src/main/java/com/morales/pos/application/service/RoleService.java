@@ -22,7 +22,8 @@ public class RoleService {
 
     @Transactional(readOnly = true)
     public List<RoleResponse> findAll() {
-        return roleRepository.findAll().stream()
+        return roleRepository.findAll(org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Order.asc("name").ignoreCase())).stream()
                 .map(RoleResponse::fromEntity)
                 .toList();
     }

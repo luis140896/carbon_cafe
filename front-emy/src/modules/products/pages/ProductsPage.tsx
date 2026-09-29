@@ -345,12 +345,7 @@ const ProductsPage = () => {
       if (filterStatus === 'inactive' && p.isActive) return false
       return true
     })
-    .sort((a, b) => {
-      const catA = (a.category?.name || '').toLowerCase()
-      const catB = (b.category?.name || '').toLowerCase()
-      if (catA !== catB) return catA.localeCompare(catB)
-      return a.name.localeCompare(b.name)
-    })
+    .sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
 
   return (
     <div className="space-y-6 animate-fade-in">

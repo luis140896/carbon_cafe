@@ -32,6 +32,12 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> findAll(Pageable pageable) {
+        if (pageable.getSort().isUnsorted()) {
+            pageable = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(), pageable.getPageSize(),
+                    org.springframework.data.domain.Sort.by(
+                            org.springframework.data.domain.Sort.Order.asc("name").ignoreCase()));
+        }
         return productRepository.findAll(pageable)
                 .map(ProductResponse::fromEntity);
     }

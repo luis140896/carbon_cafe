@@ -23,16 +23,16 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
 
     boolean existsByBarcode(String barcode);
 
-    @Query("SELECT p FROM Product p WHERE p.isActive = true")
+    @Query("SELECT p FROM Product p WHERE p.isActive = true ORDER BY LOWER(p.name)")
     List<Product> findAllActive();
 
-    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.inventory WHERE p.isActive = true")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.inventory WHERE p.isActive = true ORDER BY LOWER(p.name)")
     List<Product> findByIsActiveTrue();
 
-    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.inventory WHERE p.isActive = true AND p.category.id = :categoryId")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.inventory WHERE p.isActive = true AND p.category.id = :categoryId ORDER BY LOWER(p.name)")
     List<Product> findByCategoryIdAndIsActiveTrue(@Param("categoryId") Long categoryId);
 
-    @Query("SELECT DISTINCT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.inventory WHERE p.isActive = true AND p.category.id = :categoryId")
+    @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.inventory WHERE p.isActive = true AND p.category.id = :categoryId ORDER BY LOWER(p.name)")
     List<Product> findByCategoryId(@Param("categoryId") Long categoryId);
 
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND " +
@@ -44,13 +44,13 @@ public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpec
     @Query("SELECT p FROM Product p WHERE p.isActive = true AND " +
            "(LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(p.code) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "p.barcode LIKE CONCAT('%', :search, '%'))")
+           "p.barcode LIKE CONCAT('%', :search, '%')) ORDER BY LOWER(p.name)")
     List<Product> searchProducts(@Param("search") String search);
 
-    @Query("SELECT p FROM Product p JOIN p.inventory i WHERE i.quantity <= i.minStock AND p.isActive = true")
+    @Query("SELECT p FROM Product p JOIN p.inventory i WHERE i.quantity <= i.minStock AND p.isActive = true ORDER BY LOWER(p.name)")
     List<Product> findLowStockProducts();
 
-    @Query("SELECT p FROM Product p JOIN p.inventory i WHERE i.quantity <= 0 AND p.isActive = true")
+    @Query("SELECT p FROM Product p JOIN p.inventory i WHERE i.quantity <= 0 AND p.isActive = true ORDER BY LOWER(p.name)")
     List<Product> findOutOfStockProducts();
 
     @Query("SELECT p FROM Product p LEFT JOIN FETCH p.category LEFT JOIN FETCH p.inventory WHERE p.id = :id")

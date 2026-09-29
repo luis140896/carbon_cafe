@@ -25,13 +25,19 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public Page<CustomerResponse> findAll(Pageable pageable) {
+        if (pageable.getSort().isUnsorted()) {
+            pageable = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(), pageable.getPageSize(),
+                    org.springframework.data.domain.Sort.by(
+                            org.springframework.data.domain.Sort.Order.asc("fullName").ignoreCase()));
+        }
         return customerRepository.findAll(pageable)
                 .map(CustomerResponse::fromEntity);
     }
 
     @Transactional(readOnly = true)
     public List<CustomerResponse> findActive() {
-        return customerRepository.findByIsActiveTrue().stream()
+        return customerRepository.findByIsActiveTrueOrderByFullNameAsc().stream()
                 .map(CustomerResponse::fromEntity)
                 .collect(Collectors.toList());
     }

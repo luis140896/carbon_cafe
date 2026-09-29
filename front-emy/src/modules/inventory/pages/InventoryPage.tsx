@@ -141,7 +141,7 @@ const InventoryPage = () => {
     if (filterStatus === 'low' && !(i.quantity > 0 && i.quantity <= i.minStock)) return false
     if (filterStatus === 'normal' && (i.quantity === 0 || i.quantity <= i.minStock)) return false
     return true
-  })
+  }).sort((a: any, b: any) => getProductName(a).localeCompare(getProductName(b), 'es', { sensitivity: 'base' }))
 
   const activeFilterCount = (filterCategory ? 1 : 0) + (filterStatus !== 'all' ? 1 : 0)
 
