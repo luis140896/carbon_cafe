@@ -33,6 +33,8 @@ public class RecipeService {
     @Transactional(readOnly = true)
     public List<RecipeResponse> findAll() {
         return recipeRepository.findAllWithProduct().stream()
+                .sorted(Comparator.comparing(r -> r.getProduct().getName(),
+                        String.CASE_INSENSITIVE_ORDER))
                 .map(RecipeResponse::fromEntity)
                 .collect(Collectors.toList());
     }
