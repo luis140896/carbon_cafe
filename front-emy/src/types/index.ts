@@ -35,6 +35,9 @@ export interface Inventory {
   id: number
   productId: number
   product?: Product
+  productCode?: string
+  productName?: string
+  productUnit?: string
   quantity: number
   minStock: number
   maxStock: number

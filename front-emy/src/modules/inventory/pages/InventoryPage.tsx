@@ -8,7 +8,7 @@ import { inventoryService } from '@/core/api/inventoryService'
 import { productService } from '@/core/api/productService'
 import { categoryService } from '@/core/api/categoryService'
 import { Inventory, Category } from '@/types'
-import { formatQuantity, toQty } from '@/shared/utils/formatQuantity'
+import { formatQuantity, toQty, unitLabel } from '@/shared/utils/formatQuantity'
 import { useSortableTable } from '@/shared/hooks/useSortableTable'
 import SortableHeader from '@/shared/components/ui/SortableHeader'
 
@@ -77,6 +77,7 @@ const InventoryPage = () => {
   const getProductId = (item: any): number | undefined => item?.product?.id ?? item?.productId
   const getProductCode = (item: any): string => item?.product?.code ?? item?.productCode ?? ''
   const getProductName = (item: any): string => item?.product?.name ?? item?.productName ?? ''
+  const getProductUnit = (item: any): string => item?.product?.unit ?? item?.productUnit ?? ''
 
   useEffect(() => {
     fetchInventory()
@@ -245,6 +246,7 @@ const InventoryPage = () => {
     const exportData = inventory.map(item => ({
       'Código': getProductCode(item),
       'Producto': getProductName(item),
+      'Unidad': getProductUnit(item),
       'Stock Actual': item.quantity,
       'Stock Mínimo': item.minStock,
       'Stock Máximo': item.maxStock,
@@ -260,6 +262,7 @@ const InventoryPage = () => {
     ws['!cols'] = [
       { wch: 15 }, // Código
       { wch: 40 }, // Producto
+      { wch: 10 }, // Unidad
       { wch: 12 }, // Stock Actual
       { wch: 12 }, // Stock Mínimo
       { wch: 12 }, // Stock Máximo
@@ -607,9 +610,16 @@ const InventoryPage = () => {
                       <span className={`font-bold ${item.quantity <= item.minStock ? 'text-red-600' : 'text-gray-800'}`}>
                         {formatQuantity(item.quantity)}
                       </span>
+                      <span className="ml-1 text-xs text-gray-400">{unitLabel(getProductUnit(item))}</span>
                     </td>
-                    <td className="table-cell text-center text-gray-500">{formatQuantity(item.minStock)}</td>
-                    <td className="table-cell text-center text-gray-500">{formatQuantity(item.maxStock)}</td>
+                    <td className="table-cell text-center text-gray-500">
+                      {formatQuantity(item.minStock)}
+                      <span className="ml-1 text-xs text-gray-400">{unitLabel(getProductUnit(item))}</span>
+                    </td>
+                    <td className="table-cell text-center text-gray-500">
+                      {formatQuantity(item.maxStock)}
+                      <span className="ml-1 text-xs text-gray-400">{unitLabel(getProductUnit(item))}</span>
+                    </td>
                     <td className="table-cell">{item.location || '-'}</td>
                     <td className="table-cell text-center">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs text-white ${status.color}`}>
@@ -804,7 +814,9 @@ const InventoryPage = () => {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-medium text-gray-700 mb-3">Configuración de Stock</h4>
+                <h4 className="font-medium text-gray-700 mb-3">
+                  Configuración de Stock{formData.unit ? ` (${unitLabel(formData.unit)})` : ''}
+                </h4>
                 <div className="grid grid-cols-3 gap-4">
                   <Input
                     label="Stock Actual"
@@ -872,12 +884,14 @@ const InventoryPage = () => {
 
             <div className="mb-4 p-3 bg-primary-50 rounded-lg">
               <p className="font-medium">{getProductName(adjustModal.inventory)}</p>
-              <p className="text-sm text-gray-500">Stock actual: {formatQuantity(adjustModal.inventory.quantity)}</p>
+              <p className="text-sm text-gray-500">
+                Stock actual: {formatQuantity(adjustModal.inventory.quantity)} {unitLabel(getProductUnit(adjustModal.inventory))}
+              </p>
             </div>
 
             <div className="space-y-4">
               <Input
-                label="Cantidad *"
+                label={`Cantidad *${unitLabel(getProductUnit(adjustModal.inventory)) ? ` (${unitLabel(getProductUnit(adjustModal.inventory))})` : ''}`}
                 type="number"
                 min="0.001"
                 step="0.001"
