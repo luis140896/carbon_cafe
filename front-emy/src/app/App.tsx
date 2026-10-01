@@ -166,7 +166,7 @@ function App() {
           <Route
             path="/recipes"
             element={
-              <RoleGuard requiredPermissions={['inventory.view']}>
+              <RoleGuard requiredPermissions={['recipes.view']}>
                 <RecipesPage />
               </RoleGuard>
             }

@@ -135,6 +135,9 @@ const TablesPage = () => {
   const [completedInvoice, setCompletedInvoice] = useState<any>(null)
   const [showInvoiceModal, setShowInvoiceModal] = useState(false)
 
+  // Pre-bill (pre-factura) modal
+  const [showPreBillModal, setShowPreBillModal] = useState(false)
+
   // Delivery charge
   const [includeDelivery, setIncludeDelivery] = useState(false)
   const [deliveryCharge, setDeliveryCharge] = useState(3000)
@@ -909,26 +912,7 @@ const TablesPage = () => {
             {selectedTable.status === 'OCUPADA' && activeSession && (
               <div className="p-4 border-t bg-gray-50 space-y-2">
                 <button
-                  onClick={() => {
-                    if (!activeSession.invoice) return
-                    const preBillData = {
-                      invoiceNumber: activeSession.invoiceNumber || '',
-                      createdAt: activeSession.openedAt || new Date().toISOString(),
-                      customerName: activeSession.customerName || 'Cliente General',
-                      userName: activeSession.openedByName || '',
-                      details: (activeSession.invoice.details || []).map((d: any) => ({
-                        quantity: d.quantity,
-                        productName: d.productName,
-                        subtotal: d.subtotal,
-                        notes: d.notes,
-                      })),
-                      subtotal: activeSession.invoice.subtotal || 0,
-                      discountAmount: activeSession.invoice.discountAmount || 0,
-                      taxAmount: activeSession.invoice.taxAmount || 0,
-                      total: activeSession.invoice.total || 0,
-                    }
-                    printInvoice(preBillData as any, { isPreBill: true })
-                  }}
+                  onClick={() => setShowPreBillModal(true)}
                   disabled={!activeSession.invoice?.details?.length}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
@@ -1294,6 +1278,194 @@ const TablesPage = () => {
       )}
 
       {/* Pay Modal */}
+      {/* Pre-Bill (Pre-Factura) Modal: mismos cargos del cobro para que el cliente vea el total */}
+      {showPreBillModal && activeSession && (() => {
+        const baseTotal = activeSession.total || 0
+        const discountAmount = (baseTotal * totalDiscountPercent) / 100
+        const svcAmount = includeServiceCharge ? serviceChargeValue : 0
+        const deliveryAmount = includeDelivery ? deliveryCharge : 0
+        const preBillTotal = baseTotal - discountAmount + svcAmount + deliveryAmount
+
+        const handlePrintPreBill = () => {
+          if (!activeSession.invoice) return
+          const preBillData = {
+            invoiceNumber: activeSession.invoiceNumber || '',
+            createdAt: activeSession.openedAt || new Date().toISOString(),
+            customerName: activeSession.customerName || 'Cliente General',
+            userName: activeSession.openedByName || '',
+            details: (activeSession.invoice.details || []).map((d: any) => ({
+              quantity: d.quantity,
+              productName: d.productName,
+              subtotal: d.subtotal,
+              notes: d.notes,
+            })),
+            subtotal: activeSession.invoice.subtotal || baseTotal,
+            discountAmount,
+            discountPercent: totalDiscountPercent,
+            taxAmount: activeSession.invoice.taxAmount || 0,
+            serviceChargeAmount: svcAmount,
+            serviceChargePercent: 5,
+            deliveryChargeAmount: deliveryAmount,
+            paymentMethod,
+            total: preBillTotal,
+          }
+          printInvoice(preBillData as any, { isPreBill: true })
+        }
+
+        return (
+          <div className="modal-overlay">
+            <div className="modal-content p-6 sm:max-w-md animate-scale-in">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <Printer size={20} className="text-gray-600" />
+                  Pre-Factura Mesa #{selectedTable?.tableNumber}
+                </h3>
+                <button onClick={() => setShowPreBillModal(false)} className="text-gray-400 hover:text-gray-600">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="bg-primary-50 rounded-xl p-4 mb-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span>{formatCurrency(baseTotal)}</span>
+                </div>
+                {/* Descuento */}
+                <div className="border-t border-primary-100 pt-2">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Descuento adicional (%)</label>
+                  <input
+                    type="number"
+                    value={totalDiscountPercent}
+                    onChange={(e) => setTotalDiscountPercent(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                    min="0" max="100" step="1"
+                  />
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600 mt-1">
+                      <span>Descuento ({totalDiscountPercent}%)</span>
+                      <span>-{formatCurrency(discountAmount)}</span>
+                    </div>
+                  )}
+                </div>
+                {/* Servicio */}
+                <div className="space-y-1 py-1 border-t border-primary-100">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeServiceCharge}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          if (checked) setServiceChargeValue(Math.round(baseTotal * 0.05))
+                          setIncludeServiceCharge(checked)
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Servicio</span>
+                    </label>
+                    <span className={`text-sm font-medium ${includeServiceCharge ? 'text-primary-600' : 'text-gray-400'}`}>
+                      {includeServiceCharge ? formatCurrency(svcAmount) : '$0'}
+                    </span>
+                  </div>
+                  {includeServiceCharge && (
+                    <input
+                      type="number"
+                      value={serviceChargeValue}
+                      onChange={(e) => setServiceChargeValue(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                      min="0" step="500" placeholder="Valor servicio"
+                    />
+                  )}
+                </div>
+                {/* Domicilio */}
+                <div className="border-t border-primary-100 pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer mb-2">
+                    <input
+                      type="checkbox"
+                      checked={includeDelivery}
+                      onChange={(e) => setIncludeDelivery(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                      <Truck size={14} /> Domicilio
+                    </span>
+                  </label>
+                  {includeDelivery && (
+                    <>
+                      <input
+                        type="number"
+                        value={deliveryCharge}
+                        onChange={(e) => setDeliveryCharge(parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary-500"
+                        min="0" step="1000"
+                      />
+                      <div className="flex justify-between text-sm text-primary-600 mt-1">
+                        <span>Cargo Domicilio</span>
+                        <span>+{formatCurrency(deliveryCharge)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex justify-between text-lg font-bold text-primary-700 pt-1 border-t border-primary-100">
+                  <span>Total a pagar</span>
+                  <span>{formatCurrency(preBillTotal)}</span>
+                </div>
+              </div>
+
+              {/* Método de pago */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Método de pago</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    onClick={() => setPaymentMethod('EFECTIVO')}
+                    className={`flex items-center justify-center gap-1 p-3 rounded-xl border-2 transition-colors ${
+                      paymentMethod === 'EFECTIVO' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    <Banknote size={16} />
+                    Efectivo
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('TRANSFERENCIA')}
+                    className={`flex items-center justify-center gap-1 p-3 rounded-xl border-2 transition-colors ${
+                      paymentMethod === 'TRANSFERENCIA' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    <CreditCard size={16} />
+                    Transfer
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('MIXTO')}
+                    className={`flex items-center justify-center gap-1 p-3 rounded-xl border-2 transition-colors ${
+                      paymentMethod === 'MIXTO' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600'
+                    }`}
+                  >
+                    <Banknote size={14} /><CreditCard size={14} />
+                    Mixto
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowPreBillModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handlePrintPreBill}
+                  className="flex-1 px-4 py-2.5 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors font-medium flex items-center justify-center gap-2"
+                >
+                  <Printer size={16} />
+                  Imprimir
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {showPayModal && activeSession && (() => {
         const baseTotal = activeSession.total || 0
         const discountAmount = (baseTotal * totalDiscountPercent) / 100
@@ -1350,7 +1522,7 @@ const TablesPage = () => {
                       checked={includeServiceCharge}
                       onChange={(e) => {
                         const checked = e.target.checked
-                        const defaultAmt = checked ? Math.round(baseTotal * 0.10) : 0
+                        const defaultAmt = checked ? Math.round(baseTotal * 0.05) : 0
                         if (checked) setServiceChargeValue(defaultAmt)
                         setIncludeServiceCharge(checked)
                         setAmountReceived(recalcAmount(checked, checked ? defaultAmt : serviceChargeValue))

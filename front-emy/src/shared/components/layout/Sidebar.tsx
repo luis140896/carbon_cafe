@@ -35,7 +35,7 @@ const menuItems = [
   { path: '/products', icon: Package, label: 'Productos', requiredPermissions: ['products.view'] },
   { path: '/categories', icon: FolderTree, label: 'Categorías', requiredPermissions: ['categories.view'] },
   { path: '/inventory', icon: Warehouse, label: 'Inventario', requiredPermissions: ['inventory.view'] },
-  { path: '/recipes', icon: FlaskConical, label: 'Recetas', requiredPermissions: ['inventory.view'] },
+  { path: '/recipes', icon: FlaskConical, label: 'Recetas', requiredPermissions: ['recipes.view'] },
   { path: '/invoices', icon: FileText, label: 'Facturas', requiredPermissions: ['invoices.view'] },
   { path: '/customers', icon: Users, label: 'Clientes', requiredPermissions: ['customers.view'] },
   { path: '/reports', icon: BarChart3, label: 'Reportes', requiredPermissions: ['reports.view'] },

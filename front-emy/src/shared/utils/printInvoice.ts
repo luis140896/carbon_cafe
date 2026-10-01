@@ -96,36 +96,38 @@ const thermalCSS = `
     padding: 1mm 0.5mm;
     width: 54mm;
     max-width: 54mm;
-    font-size: 10px;
-    line-height: 1.25;
+    font-size: 12px;
+    line-height: 1.3;
     color: #000000 !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-weight: 600;
   }
   .header { text-align: center; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 6px; }
-  .header h1 { margin: 0 0 2px; font-size: 17px; text-transform: uppercase; font-weight: 900; color: #000000 !important; }
-  .header .invoice-num { font-size: 14px; font-weight: 900; color: #000000 !important; }
-  .header p { margin: 1px 0; font-size: 11px; color: #000000 !important; font-weight: 600; }
+  .header h1 { margin: 0 0 2px; font-size: 19px; text-transform: uppercase; font-weight: 900; color: #000000 !important; }
+  .header .invoice-num { font-size: 15px; font-weight: 900; color: #000000 !important; }
+  .header p { margin: 1px 0; font-size: 12px; color: #000000 !important; font-weight: 600; }
   .header p.whatsapp { font-weight: 900; }
-  .pre-bill-banner { text-align: center; font-size: 13px; font-weight: 900; border: 2px dashed #000; padding: 4px; margin-bottom: 6px; text-transform: uppercase; color: #000000 !important; }
+  .pre-bill-banner { text-align: center; font-size: 14px; font-weight: 900; border: 2px dashed #000; padding: 4px; margin-bottom: 6px; text-transform: uppercase; color: #000000 !important; }
   .info { margin-bottom: 6px; }
-  .info div { margin: 1px 0; font-size: 12px; color: #000000 !important; font-weight: 600; }
+  .info div { margin: 1px 0; font-size: 13px; color: #000000 !important; font-weight: 600; }
   .items { border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; margin: 4px 0; }
-  .item { display: flex; justify-content: space-between; margin: 1px 0; font-size: 11px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
-  .item span:first-child { flex: 1; margin-right: 1px; }
-  .item span:last-child { flex-shrink: 0; text-align: right; }
-  .item-notes { font-size: 10px; color: #000000 !important; margin-left: 8px; margin-bottom: 2px; font-weight: 500; }
-  .totals div { display: flex; justify-content: space-between; margin: 1px 0; font-size: 11px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
-  .totals div span:first-child { flex: 1; margin-right: 1px; }
-  .totals div span:last-child { flex-shrink: 0; text-align: right; }
-  .total-final { font-size: 15px; font-weight: 900; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; color: #000000 !important; }
+  .item { display: flex; justify-content: space-between; margin: 1px 0; font-size: 12px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
+  .item span:first-child { flex: 1; margin-right: 3px; word-break: break-word; }
+  .item span:last-child { flex-shrink: 0; text-align: right; white-space: nowrap; }
+  .item-notes { font-size: 11px; color: #000000 !important; margin-left: 8px; margin-bottom: 2px; font-weight: 500; }
+  .totals div { display: flex; justify-content: space-between; margin: 1px 0; font-size: 12px; color: #000000 !important; font-weight: 600; padding-right: 1mm; }
+  .totals div span:first-child { flex: 1; margin-right: 2px; }
+  .totals div span:last-child { flex-shrink: 0; text-align: right; white-space: nowrap; }
+  .total-final { font-size: 16px; font-weight: 900; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; color: #000000 !important; }
   .payment-info { border-top: 1px dashed #000; margin-top: 6px; padding-top: 4px; }
-  .payment-info div { display: flex; justify-content: space-between; margin: 1px 0; color: #000000 !important; font-weight: 600; padding-right: 1mm; font-size: 11px; }
-  .payment-info div span:first-child { flex: 1; margin-right: 1px; }
-  .payment-info div span:last-child { flex-shrink: 0; text-align: right; }
-  .footer { text-align: center; margin-top: 8px; font-size: 10px; color: #000000 !important; border-top: 1px dashed #000; padding-top: 6px; font-weight: 600; }
-  .cut-line { text-align: center; margin-top: 10px; font-size: 10px; color: #000000 !important; }
+  .payment-info div { display: flex; justify-content: space-between; margin: 1px 0; color: #000000 !important; font-weight: 600; padding-right: 1mm; font-size: 12px; }
+  .payment-info div span:first-child { flex: 1; margin-right: 2px; }
+  .payment-info div span:last-child { flex-shrink: 0; text-align: right; white-space: nowrap; }
+  .footer { text-align: center; margin-top: 8px; font-size: 11px; color: #000000 !important; border-top: 1px dashed #000; padding-top: 6px; font-weight: 600; }
+  .cut-line { text-align: center; margin-top: 10px; font-size: 11px; color: #000000 !important; }
+  .whatsapp-line { display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 900; font-size: 12px; margin-top: 4px; }
+  .whatsapp-line svg { display: inline-block; vertical-align: -1px; }
 `
 
 // ── Función principal ───────────────────────────────────────────────────────
@@ -139,7 +141,7 @@ export function printInvoice(inv: PrintableInvoice, options: PrintOptions = {}) 
   // Leer nombre de empresa desde configuración guardada en localStorage
   const settings = JSON.parse(localStorage.getItem('pos_settings') || '{}')
   const companyName = settings?.company?.companyName || 'Mi Empresa'
-  const whatsapp = settings?.company?.whatsapp || ''
+  const whatsapp = settings?.company?.whatsapp || '302 272 0909'
   const { isPreBill = false } = options
 
   // Generar filas de productos: "cantidad x nombre" alineado con subtotal a la derecha
@@ -163,7 +165,6 @@ export function printInvoice(inv: PrintableInvoice, options: PrintOptions = {}) 
     <h1>${companyName}</h1>
     <div class="invoice-num">N° ${inv.invoiceNumber}</div>
     <p>${formatDate(inv.createdAt)}</p>
-    ${whatsapp ? `<p class="whatsapp">WhatsApp: ${whatsapp}</p>` : ''}
   </div>
   <div class="info">
     <div>Cliente: ${inv.customer?.fullName || inv.customerName || 'Cliente General'}</div>
@@ -173,20 +174,22 @@ export function printInvoice(inv: PrintableInvoice, options: PrintOptions = {}) 
     ${itemsHtml}
   </div>
   <div class="totals">
-    <div><span>Subtotal:</span><span>${formatCurrency(inv.subtotal)}</span></div>
+    <div><span>Total consumo:</span><span>${formatCurrency(inv.subtotal)}</span></div>
     ${inv.discountAmount > 0 ? `<div><span>Descuento${inv.discountPercent ? ` (${inv.discountPercent}%)` : ''}:</span><span>-${formatCurrency(inv.discountAmount)}</span></div>` : ''}
-    ${(inv.serviceChargeAmount || 0) > 0 ? `<div><span>Cargo Servicio (${inv.serviceChargePercent || 10}%):</span><span>+${formatCurrency(inv.serviceChargeAmount!)}</span></div>` : ''}
+    ${(inv.serviceChargeAmount || 0) > 0 ? `<div><span>Servicio opcional (${inv.serviceChargePercent || 5}%):</span><span>+${formatCurrency(inv.serviceChargeAmount!)}</span></div>
+    <div><span>Total con servicio:</span><span>${formatCurrency(inv.subtotal - (inv.discountAmount || 0) + (inv.serviceChargeAmount || 0))}</span></div>` : ''}
     ${(inv.deliveryChargeAmount || 0) > 0 ? `<div><span>Cargo Domicilio:</span><span>+${formatCurrency(inv.deliveryChargeAmount!)}</span></div>` : ''}
-    <div class="total-final"><span>TOTAL:</span><span>${formatCurrency(inv.total)}</span></div>
+    <div class="total-final"><span>TOTAL A PAGAR:</span><span>${formatCurrency(inv.total)}</span></div>
   </div>
-  ${!isPreBill && inv.paymentMethod ? `
+  ${inv.paymentMethod ? `
   <div class="payment-info">
     <div><span>Método:</span><span>${getPaymentMethodLabel(inv.paymentMethod)}</span></div>
-    ${(inv.amountReceived || 0) > 0 ? `<div><span>Recibido:</span><span>${formatCurrency(inv.amountReceived!)}</span></div>` : ''}
-    ${(inv.changeAmount || 0) > 0 ? `<div style="font-weight:bold;"><span>Cambio:</span><span>${formatCurrency(inv.changeAmount!)}</span></div>` : ''}
+    ${!isPreBill && (inv.amountReceived || 0) > 0 ? `<div><span>Recibido:</span><span>${formatCurrency(inv.amountReceived!)}</span></div>` : ''}
+    ${!isPreBill && (inv.changeAmount || 0) > 0 ? `<div style="font-weight:bold;"><span>Cambio:</span><span>${formatCurrency(inv.changeAmount!)}</span></div>` : ''}
   </div>` : ''}
   <div class="footer">
-    <p>${isPreBill ? 'Esta no es una factura fiscal' : '¡Gracias por su compra!'}</p>
+    ${!isPreBill ? '<p>¡Gracias por su compra!</p>' : ''}
+    ${whatsapp ? `<div class="whatsapp-line"><svg width="13" height="13" viewBox="0 0 24 24" fill="#000000"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/></svg>${whatsapp}</div>` : ''}
   </div>
   <div class="cut-line">- - - - - - - - - - - - -</div>
   <script>

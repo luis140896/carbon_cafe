@@ -550,7 +550,7 @@ const PaymentModal = ({
                     checked={includeServiceCharge}
                     onChange={(e) => {
                       const checked = e.target.checked
-                      const defaultAmt = checked ? Math.round(total * 0.10) : 0
+                      const defaultAmt = checked ? Math.round(total * 0.05) : 0
                       if (checked) setServiceChargeValue(defaultAmt)
                       setIncludeServiceCharge(checked)
                       recalcAmount(checked, checked ? defaultAmt : serviceChargeValue, includeDelivery, deliveryCharge, totalDiscountPercent)
