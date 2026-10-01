@@ -1,15 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useSelector } from 'react-redux'
-import { Download, BarChart3, TrendingUp, DollarSign, Loader2, Package, CreditCard, FileText, X } from 'lucide-react'
+import { Download, BarChart3, TrendingUp, DollarSign, Loader2, Package, CreditCard, FileText, X, Plus, Edit2, Trash2, Wallet } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Button from '@/shared/components/ui/Button'
+import Input from '@/shared/components/ui/Input'
 import { reportService, SalesSummary, TopProduct, TopCustomer, InventorySummary, PaymentMethodStat } from '@/core/api/reportService'
 import { invoiceService } from '@/core/api/invoiceService'
+import { expenseService } from '@/core/api/expenseService'
+import { Expense, ExpenseRequest, EXPENSE_CATEGORY_LABELS, ProfitComparison } from '@/types'
 import { RootState } from '@/app/store'
 import XLSX from 'xlsx-js-style'
 import DateRangeFilter, { toLocalDateStr } from '@/shared/components/DateRangeFilter'
 
 const TRANSFER_METHODS = new Set(['TRANSFERENCIA', 'TARJETA_CREDITO', 'TARJETA_DEBITO', 'NEQUI', 'DAVIPLATA'])
+
+const EXPENSE_CATEGORIES = Object.keys(EXPENSE_CATEGORY_LABELS)
+const EXPENSE_PAYMENT_METHODS = ['EFECTIVO', 'TRANSFERENCIA', 'NEQUI', 'DAVIPLATA', 'TARJETA_DEBITO', 'TARJETA_CREDITO', 'OTRO']
+
+const emptyExpenseForm = (): ExpenseRequest => ({
+  expenseDate: toLocalDateStr(new Date()),
+  description: '',
+  category: 'OTROS',
+  amount: 0,
+  paymentMethod: '',
+  notes: '',
+})
 
 const safeNum = (v: any): number => {
   const n = Number(v)
@@ -84,6 +99,11 @@ const ReportsPage = () => {
   const [inventorySummary, setInventorySummary] = useState<InventorySummary | null>(null)
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethodStat[]>([])
   const [showBasicReport, setShowBasicReport] = useState(false)
+  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [profitComparison, setProfitComparison] = useState<ProfitComparison | null>(null)
+  const [expenseModal, setExpenseModal] = useState<{ expense?: Expense } | null>(null)
+  const [expenseForm, setExpenseForm] = useState<ExpenseRequest>(emptyExpenseForm())
+  const [savingExpense, setSavingExpense] = useState(false)
 
   const fetchReports = async () => {
     try {
@@ -91,12 +111,14 @@ const ReportsPage = () => {
       const startDateTime = `${dateRange.start}T00:00:00`
       const endDateTime = `${dateRange.end}T23:59:59`
 
-      const [summary, products, customers, inventory, payments] = await Promise.all([
+      const [summary, products, customers, inventory, payments, expensesRes, comparison] = await Promise.all([
         reportService.getSalesSummary(startDateTime, endDateTime).catch(() => null),
         reportService.getTopProducts(startDateTime, endDateTime, 5).catch(() => []),
         reportService.getTopCustomers(startDateTime, endDateTime, 5).catch(() => []),
         reportService.getInventorySummary().catch(() => null),
-        reportService.getSalesByPaymentMethod(startDateTime, endDateTime).catch(() => [])
+        reportService.getSalesByPaymentMethod(startDateTime, endDateTime).catch(() => []),
+        expenseService.getByDateRange(dateRange.start, dateRange.end).catch(() => []),
+        reportService.getProfitComparison(dateRange.start, dateRange.end).catch(() => null),
       ])
 
       setSalesSummary(summary as SalesSummary | null)
@@ -104,6 +126,8 @@ const ReportsPage = () => {
       setTopCustomers(customers as TopCustomer[])
       setInventorySummary(inventory as InventorySummary | null)
       setPaymentMethods(payments as PaymentMethodStat[])
+      setExpenses((expensesRes as Expense[]) ?? [])
+      setProfitComparison((comparison as ProfitComparison | null) ?? null)
     } catch (error) {
       console.error('Error loading reports:', error)
       toast.error('Error al cargar reportes')
@@ -265,6 +289,132 @@ const ReportsPage = () => {
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value || 0)
+
+  // ============ EXPENSES (Gastos vs Utilidad) ============
+
+  const openExpenseModal = (expense?: Expense) => {
+    if (expense) {
+      setExpenseForm({
+        expenseDate: expense.expenseDate,
+        description: expense.description,
+        category: expense.category || 'OTROS',
+        amount: safeNum(expense.amount),
+        paymentMethod: expense.paymentMethod || '',
+        notes: expense.notes || '',
+      })
+    } else {
+      setExpenseForm(emptyExpenseForm())
+    }
+    setExpenseModal({ expense })
+  }
+
+  const handleExpenseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!expenseForm.description.trim()) {
+      toast.error('La descripción es requerida')
+      return
+    }
+    if (!expenseForm.amount || expenseForm.amount <= 0) {
+      toast.error('El monto debe ser mayor a 0')
+      return
+    }
+    try {
+      setSavingExpense(true)
+      if (expenseModal?.expense) {
+        await expenseService.update(expenseModal.expense.id, expenseForm)
+        toast.success('Gasto actualizado')
+      } else {
+        await expenseService.create(expenseForm)
+        toast.success('Gasto registrado')
+      }
+      setExpenseModal(null)
+      fetchReports()
+    } catch (error) {
+      console.error('Error saving expense:', error)
+      toast.error('Error al guardar el gasto')
+    } finally {
+      setSavingExpense(false)
+    }
+  }
+
+  const handleDeleteExpense = async (expense: Expense) => {
+    if (!window.confirm(`¿Eliminar el gasto "${expense.description}"?`)) return
+    try {
+      await expenseService.delete(expense.id)
+      toast.success('Gasto eliminado')
+      fetchReports()
+    } catch (error) {
+      console.error('Error deleting expense:', error)
+      toast.error('Error al eliminar el gasto')
+    }
+  }
+
+  const exportExpensesToExcel = () => {
+    try {
+      const headerStyle: any = {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: (theme.secondaryColor || '#7c3aed').replace('#', '').toUpperCase() } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      }
+      const currencyStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' } }
+      const wb = XLSX.utils.book_new()
+
+      // === GASTOS SHEET ===
+      const expHeaders = ['Fecha', 'Descripción', 'Categoría', 'Método Pago', 'Monto', 'Notas', 'Registrado por']
+      const expData = expenses.map((e) => [
+        e.expenseDate,
+        e.description,
+        EXPENSE_CATEGORY_LABELS[e.category] || e.category,
+        e.paymentMethod ? getPaymentMethodLabel(e.paymentMethod) : '',
+        safeNum(e.amount),
+        e.notes || '',
+        e.createdByName || '',
+      ])
+      const expAoA = [expHeaders, ...expData, [], ['', '', '', 'TOTAL', expenses.reduce((s, e) => s + safeNum(e.amount), 0), '', '']]
+      const wsExp = XLSX.utils.aoa_to_sheet(expAoA)
+      expHeaders.forEach((_, i) => {
+        const ref = XLSX.utils.encode_cell({ r: 0, c: i })
+        if (wsExp[ref]) wsExp[ref].s = headerStyle
+      })
+      expData.forEach((_, rowIdx) => {
+        const ref = XLSX.utils.encode_cell({ r: rowIdx + 1, c: 4 })
+        if (wsExp[ref]) wsExp[ref].s = currencyStyle
+      })
+      wsExp['!cols'] = [{ wch: 12 }, { wch: 40 }, { wch: 18 }, { wch: 15 }, { wch: 14 }, { wch: 30 }, { wch: 18 }]
+      XLSX.utils.book_append_sheet(wb, wsExp, 'Gastos')
+
+      // === VENTAS VS GASTOS SHEET ===
+      if (profitComparison) {
+        const cmpHeaders = ['Fecha', 'Ventas Netas', 'Gastos', 'Ganancia']
+        const cmpData = profitComparison.days.map((d) => [
+          d.date,
+          safeNum(d.netSales),
+          safeNum(d.expenses),
+          safeNum(d.profit),
+        ])
+        const cmpAoA = [cmpHeaders, ...cmpData, [], ['TOTAL', safeNum(profitComparison.totalNetSales), safeNum(profitComparison.totalExpenses), safeNum(profitComparison.totalProfit)]]
+        const wsCmp = XLSX.utils.aoa_to_sheet(cmpAoA)
+        cmpHeaders.forEach((_, i) => {
+          const ref = XLSX.utils.encode_cell({ r: 0, c: i })
+          if (wsCmp[ref]) wsCmp[ref].s = headerStyle
+        })
+        cmpData.forEach((_, rowIdx) => {
+          [1, 2, 3].forEach((c) => {
+            const ref = XLSX.utils.encode_cell({ r: rowIdx + 1, c })
+            if (wsCmp[ref]) wsCmp[ref].s = currencyStyle
+          })
+        })
+        wsCmp['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
+        XLSX.utils.book_append_sheet(wb, wsCmp, 'VentasVsGastos')
+      }
+
+      XLSX.writeFile(wb, `gastos_${dateRange.start}_${dateRange.end}.xlsx`)
+      toast.success('Reporte de gastos exportado')
+    } catch (error) {
+      console.error('Error exporting expenses:', error)
+      toast.error('Error al exportar gastos')
+    }
+  }
 
   const getPaymentMethodLabel = (method: string) => {
     switch (method) {
@@ -556,6 +706,31 @@ const ReportsPage = () => {
         XLSX.utils.book_append_sheet(wb, wsCust, 'TopClientes')
       }
 
+      // === VENTAS VS GASTOS SHEET ===
+      if (profitComparison) {
+        const cmpHeaders = ['Fecha', 'Ventas Netas', 'Gastos', 'Ganancia']
+        const cmpData = profitComparison.days.map((d) => [
+          d.date,
+          safeNum(d.netSales),
+          safeNum(d.expenses),
+          safeNum(d.profit),
+        ])
+        const cmpAoA = [cmpHeaders, ...cmpData, [], ['TOTAL', safeNum(profitComparison.totalNetSales), safeNum(profitComparison.totalExpenses), safeNum(profitComparison.totalProfit)]]
+        const wsCmp = XLSX.utils.aoa_to_sheet(cmpAoA)
+        cmpHeaders.forEach((_, i) => {
+          const ref = XLSX.utils.encode_cell({ r: 0, c: i })
+          if (wsCmp[ref]) wsCmp[ref].s = headerStyle
+        })
+        cmpData.forEach((_, rowIdx) => {
+          [1, 2, 3].forEach((c) => {
+            const ref = XLSX.utils.encode_cell({ r: rowIdx + 1, c })
+            if (wsCmp[ref]) wsCmp[ref].s = currencyStyle
+          })
+        })
+        wsCmp['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
+        XLSX.utils.book_append_sheet(wb, wsCmp, 'VentasVsGastos')
+      }
+
       XLSX.writeFile(wb, `reporte_ventas_${dateRange.start}_${dateRange.end}.xlsx`)
       toast.success('Excel exportado correctamente')
     } catch (error) {
@@ -687,6 +862,140 @@ const ReportsPage = () => {
               <span>Domicilios: <strong className="text-purple-700">{formatCurrency(totals?.deliveryCharge || 0)}</strong></span>
               <span>Total Efectivo: <strong>{formatCurrency(totals?.cash?.total || 0)}</strong></span>
               <span>Total Transfer: <strong>{formatCurrency(totals?.transfer?.total || 0)}</strong></span>
+            </div>
+          </div>
+
+          {/* Expenses & Profit Comparison */}
+          <div className="card border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <h3 className="text-lg font-bold text-orange-800 flex items-center gap-2">
+                <Wallet className="w-5 h-5" /> Gastos y Utilidad
+              </h3>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={exportExpensesToExcel}>
+                  <Download size={16} /> Exportar gastos
+                </Button>
+                <Button variant="primary" size="sm" onClick={() => openExpenseModal()}>
+                  <Plus size={16} /> Nuevo gasto
+                </Button>
+              </div>
+            </div>
+
+            {/* KPIs del período */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              <div className="p-4 bg-white rounded-xl border border-green-200">
+                <p className="text-xs text-gray-500 mb-1">Ventas Netas (sin servicio ni domicilio)</p>
+                <p className="text-xl font-bold text-green-700">{formatCurrency(profitComparison?.totalNetSales || 0)}</p>
+              </div>
+              <div className="p-4 bg-white rounded-xl border border-orange-200">
+                <p className="text-xs text-gray-500 mb-1">Gastos del Período</p>
+                <p className="text-xl font-bold text-orange-700">{formatCurrency(profitComparison?.totalExpenses || 0)}</p>
+              </div>
+              <div className={`p-4 rounded-xl text-white ${(profitComparison?.totalProfit || 0) >= 0 ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                <p className="text-xs text-emerald-100 mb-1">Ganancia del Período</p>
+                <p className="text-xl font-bold">{formatCurrency(profitComparison?.totalProfit || 0)}</p>
+                <p className="text-xs opacity-80 mt-1">Ventas netas - gastos</p>
+              </div>
+            </div>
+
+            {/* Comparativo diario */}
+            {profitComparison && profitComparison.days.length > 0 && (
+              <div className="mb-4 bg-white rounded-xl border border-orange-100 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-orange-100 text-left">
+                      <th className="px-4 py-2 font-semibold text-gray-600">Fecha</th>
+                      <th className="px-4 py-2 font-semibold text-gray-600 text-right">Ventas Netas</th>
+                      <th className="px-4 py-2 font-semibold text-gray-600 text-right">Gastos</th>
+                      <th className="px-4 py-2 font-semibold text-gray-600 text-right">Ganancia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profitComparison.days.map((d) => (
+                      <tr key={d.date} className="border-b border-orange-50 last:border-0">
+                        <td className="px-4 py-2 text-gray-700">{d.date}</td>
+                        <td className="px-4 py-2 text-right font-medium text-green-700">{formatCurrency(safeNum(d.netSales))}</td>
+                        <td className="px-4 py-2 text-right font-medium text-orange-600">{formatCurrency(safeNum(d.expenses))}</td>
+                        <td className={`px-4 py-2 text-right font-bold ${safeNum(d.profit) >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                          {formatCurrency(safeNum(d.profit))}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-orange-50 font-bold">
+                      <td className="px-4 py-2 text-gray-800">TOTAL</td>
+                      <td className="px-4 py-2 text-right text-green-700">{formatCurrency(profitComparison.totalNetSales)}</td>
+                      <td className="px-4 py-2 text-right text-orange-700">{formatCurrency(profitComparison.totalExpenses)}</td>
+                      <td className={`px-4 py-2 text-right ${profitComparison.totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                        {formatCurrency(profitComparison.totalProfit)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Lista de gastos */}
+            <div className="bg-white rounded-xl border border-orange-100 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-orange-100 text-left">
+                    <th className="px-4 py-2 font-semibold text-gray-600">Fecha</th>
+                    <th className="px-4 py-2 font-semibold text-gray-600">Descripción</th>
+                    <th className="px-4 py-2 font-semibold text-gray-600">Categoría</th>
+                    <th className="px-4 py-2 font-semibold text-gray-600 hidden sm:table-cell">Método</th>
+                    <th className="px-4 py-2 font-semibold text-gray-600 text-right">Monto</th>
+                    <th className="px-4 py-2 font-semibold text-gray-600 hidden lg:table-cell">Registrado por</th>
+                    <th className="px-4 py-2 font-semibold text-gray-600 text-center">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {expenses.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-6 text-center text-gray-400">
+                        Sin gastos registrados en el período
+                      </td>
+                    </tr>
+                  ) : (
+                    expenses.map((expense) => (
+                      <tr key={expense.id} className="border-b border-orange-50 last:border-0 hover:bg-orange-50/50">
+                        <td className="px-4 py-2 text-gray-700 whitespace-nowrap">{expense.expenseDate}</td>
+                        <td className="px-4 py-2 text-gray-800">
+                          {expense.description}
+                          {expense.notes && <p className="text-xs text-gray-400 truncate max-w-[240px]">{expense.notes}</p>}
+                        </td>
+                        <td className="px-4 py-2">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
+                            {EXPENSE_CATEGORY_LABELS[expense.category] || expense.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-gray-600 hidden sm:table-cell">
+                          {expense.paymentMethod ? getPaymentMethodLabel(expense.paymentMethod) : '—'}
+                        </td>
+                        <td className="px-4 py-2 text-right font-semibold text-gray-800">{formatCurrency(safeNum(expense.amount))}</td>
+                        <td className="px-4 py-2 text-gray-500 hidden lg:table-cell">{expense.createdByName || '—'}</td>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openExpenseModal(expense)}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar gasto"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExpense(expense)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar gasto"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -887,6 +1196,97 @@ const ReportsPage = () => {
               </div>
             )}
           </div>
+
+          {/* Expense Modal */}
+          {expenseModal && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-gray-800">
+                    {expenseModal.expense ? 'Editar Gasto' : 'Nuevo Gasto'}
+                  </h2>
+                  <button onClick={() => setExpenseModal(null)} className="text-gray-400 hover:text-gray-600">
+                    <X size={20} />
+                  </button>
+                </div>
+                <form onSubmit={handleExpenseSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Fecha *"
+                      type="date"
+                      value={expenseForm.expenseDate}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, expenseDate: e.target.value })}
+                      required
+                    />
+                    <Input
+                      label="Monto *"
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={expenseForm.amount || ''}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, amount: Number(e.target.value) })}
+                      placeholder="0"
+                      required
+                    />
+                  </div>
+                  <Input
+                    label="Descripción *"
+                    type="text"
+                    value={expenseForm.description}
+                    onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                    placeholder="Ej: Pago de arriendo"
+                    required
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
+                      <select
+                        value={expenseForm.category}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                        required
+                      >
+                        {EXPENSE_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>{EXPENSE_CATEGORY_LABELS[cat]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Método de pago</label>
+                      <select
+                        value={expenseForm.paymentMethod || ''}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                      >
+                        <option value="">Sin especificar</option>
+                        {EXPENSE_PAYMENT_METHODS.map((m) => (
+                          <option key={m} value={m}>{getPaymentMethodLabel(m)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+                    <textarea
+                      value={expenseForm.notes || ''}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none"
+                      rows={2}
+                      placeholder="Notas adicionales (opcional)"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <Button type="button" variant="secondary" onClick={() => setExpenseModal(null)} className="flex-1">
+                      Cancelar
+                    </Button>
+                    <Button type="submit" variant="primary" disabled={savingExpense} className="flex-1">
+                      {savingExpense ? 'Guardando...' : expenseModal.expense ? 'Actualizar' : 'Registrar'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

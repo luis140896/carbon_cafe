@@ -82,6 +82,17 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
            "GROUP BY CAST(i.createdAt AS LocalDate) ORDER BY CAST(i.createdAt AS LocalDate)")
     List<Object[]> getDailySales(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
+    /**
+     * Ventas netas del dueño por día: total menos servicio (propina) y
+     * domicilio, solo facturas COMPLETADA. Retorna [LocalDate, BigDecimal].
+     */
+    @Query("SELECT CAST(i.createdAt AS LocalDate), " +
+           "SUM(i.total - COALESCE(i.serviceChargeAmount, 0) - COALESCE(i.deliveryChargeAmount, 0)) " +
+           "FROM Invoice i " +
+           "WHERE i.createdAt BETWEEN :start AND :end AND i.status = 'COMPLETADA' " +
+           "GROUP BY CAST(i.createdAt AS LocalDate) ORDER BY CAST(i.createdAt AS LocalDate)")
+    List<Object[]> getDailyNetSales(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
     @Query(value = "SELECT c.id, c.full_name, COUNT(i.id), SUM(i.total) FROM invoices i " +
            "JOIN customers c ON i.customer_id = c.id WHERE i.created_at BETWEEN :start AND :end AND i.status = 'COMPLETADA' " +
            "GROUP BY c.id, c.full_name ORDER BY SUM(i.total) DESC LIMIT :limit", nativeQuery = true)

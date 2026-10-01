@@ -237,6 +237,54 @@ export interface RecipeAvailability {
   source?: 'RECIPE' | 'PRODUCT_STOCK'
 }
 
+export type ExpenseCategory = 'ARRIENDO' | 'SERVICIOS' | 'NOMINA' | 'INSUMOS' | 'TRANSPORTE' | 'OTROS'
+
+export const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
+  ARRIENDO: 'Arriendo',
+  SERVICIOS: 'Servicios públicos',
+  NOMINA: 'Nómina',
+  INSUMOS: 'Insumos',
+  TRANSPORTE: 'Transporte',
+  OTROS: 'Otros',
+}
+
+export interface Expense {
+  id: number
+  expenseDate: string
+  description: string
+  category: string
+  amount: number
+  paymentMethod?: string
+  notes?: string
+  createdById?: number
+  createdByName?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface ExpenseRequest {
+  expenseDate: string
+  description: string
+  category: string
+  amount: number
+  paymentMethod?: string
+  notes?: string
+}
+
+export interface DailyProfitComparison {
+  date: string
+  netSales: number
+  expenses: number
+  profit: number
+}
+
+export interface ProfitComparison {
+  days: DailyProfitComparison[]
+  totalNetSales: number
+  totalExpenses: number
+  totalProfit: number
+}
+
 export interface PaginatedResponse<T> {
   content: T[]
   totalElements: number

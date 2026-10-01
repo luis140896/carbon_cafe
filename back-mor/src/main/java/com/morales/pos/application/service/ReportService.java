@@ -13,7 +13,10 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeSet;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +27,7 @@ public class ReportService {
     private final InvoiceDetailRepository invoiceDetailRepository;
     private final ProductRepository productRepository;
     private final InventoryRepository inventoryRepository;
+    private final ExpenseRepository expenseRepository;
 
     @Transactional(readOnly = true)
     public SalesSummary getSalesSummary(LocalDateTime start, LocalDateTime end) {
@@ -89,6 +93,53 @@ public class ReportService {
     @Transactional(readOnly = true)
     public List<DailySales> getLast7DaysSales() {
         return getDailySales(LocalDate.now().minusDays(6), LocalDate.now());
+    }
+
+    /**
+     * Comparación diaria: ventas netas del dueño (sin servicio ni domicilio)
+     * vs gastos registrados. profit = netSales - expenses.
+     * Incluye solo días que tengan ventas o gastos en el rango.
+     */
+    @Transactional(readOnly = true)
+    public ProfitComparison getProfitComparison(LocalDate startDate, LocalDate endDate) {
+        Map<LocalDate, BigDecimal> netSales = new HashMap<>();
+        for (Object[] row : invoiceRepository.getDailyNetSales(
+                startDate.atStartOfDay(), endDate.atTime(23, 59, 59))) {
+            netSales.put((LocalDate) row[0], (BigDecimal) row[1]);
+        }
+
+        Map<LocalDate, BigDecimal> expenses = new HashMap<>();
+        for (Object[] row : expenseRepository.sumByDateRange(startDate, endDate)) {
+            expenses.put((LocalDate) row[0], (BigDecimal) row[1]);
+        }
+
+        TreeSet<LocalDate> dates = new TreeSet<>();
+        dates.addAll(netSales.keySet());
+        dates.addAll(expenses.keySet());
+
+        List<DailyProfitComparison> days = new ArrayList<>();
+        BigDecimal totalNetSales = BigDecimal.ZERO;
+        BigDecimal totalExpenses = BigDecimal.ZERO;
+
+        for (LocalDate date : dates) {
+            BigDecimal sales = netSales.getOrDefault(date, BigDecimal.ZERO);
+            BigDecimal expense = expenses.getOrDefault(date, BigDecimal.ZERO);
+            days.add(DailyProfitComparison.builder()
+                    .date(date)
+                    .netSales(sales)
+                    .expenses(expense)
+                    .profit(sales.subtract(expense))
+                    .build());
+            totalNetSales = totalNetSales.add(sales);
+            totalExpenses = totalExpenses.add(expense);
+        }
+
+        return ProfitComparison.builder()
+                .days(days)
+                .totalNetSales(totalNetSales)
+                .totalExpenses(totalExpenses)
+                .totalProfit(totalNetSales.subtract(totalExpenses))
+                .build();
     }
 
     @Transactional(readOnly = true)

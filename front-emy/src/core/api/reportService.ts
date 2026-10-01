@@ -1,4 +1,5 @@
 import api from './axiosInstance'
+import { ProfitComparison } from '@/types'
 
 export interface SalesSummary {
   totalSales: number
@@ -85,4 +86,7 @@ export const reportService = {
 
   getInventorySummary: () =>
     api.get<InventorySummary>('/reports/inventory/value'),
+
+  getProfitComparison: (startDate: string, endDate: string) =>
+    api.get<ProfitComparison>(`/reports/profit-comparison?startDate=${startDate.split('T')[0]}&endDate=${endDate.split('T')[0]}`),
 }

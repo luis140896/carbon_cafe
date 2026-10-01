@@ -55,6 +55,13 @@ public class ReportController {
         return ResponseEntity.ok(ApiResponse.success(reportService.getLast7DaysSales()));
     }
 
+    @GetMapping("/profit-comparison")
+    public ResponseEntity<ApiResponse<ProfitComparison>> getProfitComparison(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        return ResponseEntity.ok(ApiResponse.success(reportService.getProfitComparison(startDate, endDate)));
+    }
+
     @GetMapping("/products/top")
     public ResponseEntity<ApiResponse<List<TopProduct>>> getTopProducts(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,

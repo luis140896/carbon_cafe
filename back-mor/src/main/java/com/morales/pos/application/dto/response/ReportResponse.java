@@ -80,6 +80,32 @@ public class ReportResponse {
         private BigDecimal percentage;
     }
 
+    /**
+     * Comparación diaria: ventas netas del dueño (sin propinas ni
+     * domicilios) contra gastos registrados ese día.
+     */
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DailyProfitComparison {
+        private LocalDate date;
+        private BigDecimal netSales;
+        private BigDecimal expenses;
+        private BigDecimal profit;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProfitComparison {
+        private List<DailyProfitComparison> days;
+        private BigDecimal totalNetSales;
+        private BigDecimal totalExpenses;
+        private BigDecimal totalProfit;
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
