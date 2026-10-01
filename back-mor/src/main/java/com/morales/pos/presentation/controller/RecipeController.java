@@ -2,6 +2,7 @@ package com.morales.pos.presentation.controller;
 
 import com.morales.pos.application.dto.request.SaveRecipeRequest;
 import com.morales.pos.application.dto.response.ApiResponse;
+import com.morales.pos.application.dto.response.RecipeAvailabilityResponse;
 import com.morales.pos.application.dto.response.RecipeResponse;
 import com.morales.pos.application.service.RecipeService;
 import jakarta.validation.Valid;
@@ -22,6 +23,11 @@ public class RecipeController {
     @GetMapping
     public ResponseEntity<ApiResponse<List<RecipeResponse>>> findAll() {
         return ResponseEntity.ok(ApiResponse.success(recipeService.findAll()));
+    }
+
+    @GetMapping("/availability")
+    public ResponseEntity<ApiResponse<List<RecipeAvailabilityResponse>>> availability() {
+        return ResponseEntity.ok(ApiResponse.success(recipeService.computeAvailability()));
     }
 
     @GetMapping("/product/{productId}")

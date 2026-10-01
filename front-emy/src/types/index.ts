@@ -222,6 +222,18 @@ export interface Recipe {
   updatedAt?: string
 }
 
+export interface RecipeAvailability {
+  recipeId: number
+  productId: number
+  productName: string
+  productUnit?: string
+  yieldQty: number
+  isActive?: boolean
+  producibleQty?: number | null
+  limitingIngredient?: string
+  source?: 'RECIPE' | 'PRODUCT_STOCK'
+}
+
 export interface PaginatedResponse<T> {
   content: T[]
   totalElements: number

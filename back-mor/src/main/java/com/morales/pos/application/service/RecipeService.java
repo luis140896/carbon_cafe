@@ -2,11 +2,14 @@ package com.morales.pos.application.service;
 
 import com.morales.pos.application.dto.request.RecipeItemRequest;
 import com.morales.pos.application.dto.request.SaveRecipeRequest;
+import com.morales.pos.application.dto.response.RecipeAvailabilityResponse;
 import com.morales.pos.application.dto.response.RecipeResponse;
+import com.morales.pos.domain.entity.Inventory;
 import com.morales.pos.domain.entity.Product;
 import com.morales.pos.domain.entity.Recipe;
 import com.morales.pos.domain.entity.RecipeItem;
 import com.morales.pos.domain.enums.ProductType;
+import com.morales.pos.domain.repository.InventoryRepository;
 import com.morales.pos.domain.repository.ProductRepository;
 import com.morales.pos.domain.repository.RecipeRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -15,10 +18,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -29,6 +36,7 @@ public class RecipeService {
 
     private final RecipeRepository recipeRepository;
     private final ProductRepository productRepository;
+    private final InventoryRepository inventoryRepository;
 
     @Transactional(readOnly = true)
     public List<RecipeResponse> findAll() {
@@ -37,6 +45,93 @@ public class RecipeService {
                         String.CASE_INSENSITIVE_ORDER))
                 .map(RecipeResponse::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Disponibilidad por receta: unidades producibles segun el stock actual
+     * de los ingredientes. Usa la MISMA formula que StockDeductionService:
+     *   consumo_por_lote = cantidad * (1 + merma%) / yield
+     *   producible       = min(stock / consumo_por_lote) * yield
+     *
+     * - Ingrediente sin registro en inventory = sin control de stock (no limita),
+     *   consistente con validate()/deduct().
+     * - Receta inactiva o sin items: el POS descuenta el stock propio del
+     *   producto (fallback DIRECTO), asi que producible = su propio stock.
+     * - Ningun ingrediente controlado -> producibleQty = null.
+     */
+    @Transactional(readOnly = true)
+    public List<RecipeAvailabilityResponse> computeAvailability() {
+        Map<Long, BigDecimal> stock = new HashMap<>();
+        for (Inventory inv : inventoryRepository.findAllWithProduct()) {
+            stock.put(inv.getProduct().getId(), inv.getQuantity());
+        }
+
+        return recipeRepository.findAllWithProduct().stream()
+                .sorted(Comparator.comparing(r -> r.getProduct().getName(),
+                        String.CASE_INSENSITIVE_ORDER))
+                .map(recipe -> toAvailability(recipe, stock))
+                .collect(Collectors.toList());
+    }
+
+    private RecipeAvailabilityResponse toAvailability(Recipe recipe, Map<Long, BigDecimal> stock) {
+        RecipeAvailabilityResponse.RecipeAvailabilityResponseBuilder base =
+                RecipeAvailabilityResponse.builder()
+                        .recipeId(recipe.getId())
+                        .productId(recipe.getProduct().getId())
+                        .productName(recipe.getProduct().getName())
+                        .productUnit(recipe.getProduct().getUnit())
+                        .yieldQty(recipe.getYieldQty())
+                        .isActive(recipe.getIsActive());
+
+        boolean recipeActive = Boolean.TRUE.equals(recipe.getIsActive())
+                && recipe.getItems() != null && !recipe.getItems().isEmpty();
+
+        if (!recipeActive) {
+            // Fallback consistente con computeRequired: se descuenta stock propio
+            BigDecimal own = stock.get(recipe.getProduct().getId());
+            return base.source("PRODUCT_STOCK").producibleQty(own).build();
+        }
+
+        BigDecimal yield = recipe.getYieldQty() != null
+                && recipe.getYieldQty().compareTo(BigDecimal.ZERO) > 0
+                ? recipe.getYieldQty() : BigDecimal.ONE;
+
+        BigDecimal minBatches = null;
+        String limiting = null;
+
+        for (RecipeItem item : recipe.getItems()) {
+            Long ingredientId = item.getIngredient().getId();
+            BigDecimal available = stock.get(ingredientId);
+            if (available == null) {
+                continue; // ingrediente sin control de stock
+            }
+
+            BigDecimal wasteFactor = BigDecimal.ONE.add(
+                    (item.getWastePercent() != null ? item.getWastePercent() : BigDecimal.ZERO)
+                            .divide(BigDecimal.valueOf(100)));
+            BigDecimal consumption = item.getQuantity()
+                    .multiply(wasteFactor)
+                    .divide(yield, 6, RoundingMode.HALF_UP);
+
+            if (consumption.compareTo(BigDecimal.ZERO) <= 0) {
+                continue; // no consume nada, no limita
+            }
+
+            BigDecimal batches = available.divide(consumption, 6, RoundingMode.DOWN);
+            if (minBatches == null || batches.compareTo(minBatches) < 0) {
+                minBatches = batches;
+                limiting = item.getIngredient().getName();
+            }
+        }
+
+        BigDecimal producible = minBatches == null
+                ? null
+                : minBatches.multiply(yield).setScale(3, RoundingMode.DOWN);
+
+        return base.source("RECIPE")
+                .producibleQty(producible)
+                .limitingIngredient(limiting)
+                .build();
     }
 
     @Transactional(readOnly = true)

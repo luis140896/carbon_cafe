@@ -5,9 +5,10 @@ import Button from '@/shared/components/ui/Button'
 import Input from '@/shared/components/ui/Input'
 import { recipeService } from '@/core/api/recipeService'
 import { productService } from '@/core/api/productService'
-import { Recipe, RecipeItem, Product } from '@/types'
+import { Recipe, RecipeItem, Product, RecipeAvailability } from '@/types'
 import { useSortableTable } from '@/shared/hooks/useSortableTable'
 import SortableHeader from '@/shared/components/ui/SortableHeader'
+import { formatQuantity } from '@/shared/utils/formatQuantity'
 
 type RecipeItemForm = Omit<RecipeItem, 'quantity' | 'wastePercent'> & {
   quantity: number | string
@@ -21,6 +22,7 @@ type RecipeForm = Omit<Recipe, 'yieldQty' | 'items'> & {
 
 const RecipesPage = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [availability, setAvailability] = useState<Record<number, RecipeAvailability>>({})
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -46,6 +48,17 @@ const RecipesPage = () => {
       toast.error(error.response?.data?.message || 'Error al cargar recetas')
     } finally {
       setLoading(false)
+    }
+
+    // Disponibilidad por receta (fallo silencioso: solo deja la columna en "-")
+    try {
+      const av: any = await recipeService.getAvailability()
+      const list: RecipeAvailability[] = Array.isArray(av) ? av : av?.data || []
+      const map: Record<number, RecipeAvailability> = {}
+      list.forEach(a => { map[a.productId] = a })
+      setAvailability(map)
+    } catch {
+      setAvailability({})
     }
   }
 
@@ -137,6 +150,7 @@ const RecipesPage = () => {
     producto: (r) => r.productName || '',
     rendimiento: (r) => Number(r.yieldQty) || 0,
     ingredientes: (r) => r.items?.length || 0,
+    disponible: (r) => availability[r.productId]?.producibleQty ?? -1,
   }, { key: 'producto', direction: 'asc' })
 
   return (
@@ -178,6 +192,7 @@ const RecipesPage = () => {
                 <SortableHeader label="Producto" columnKey="producto" sort={sort} onToggle={toggleSort} />
                 <SortableHeader label="Rendimiento" columnKey="rendimiento" sort={sort} onToggle={toggleSort} />
                 <SortableHeader label="Ingredientes" columnKey="ingredientes" sort={sort} onToggle={toggleSort} />
+                <SortableHeader label="Disponible" columnKey="disponible" sort={sort} onToggle={toggleSort} />
                 <th className="table-header text-center">Acciones</th>
               </tr>
             </thead>
@@ -187,6 +202,36 @@ const RecipesPage = () => {
                   <td className="table-cell font-medium">{r.productName || r.productId}</td>
                   <td className="table-cell">{r.yieldQty}</td>
                   <td className="table-cell">{r.items?.length || 0}</td>
+                  <td className="table-cell">
+                    {(() => {
+                      const a = availability[r.productId]
+                      if (!a || a.producibleQty == null) {
+                        return <span className="text-gray-400">—</span>
+                      }
+                      const qty = Number(a.producibleQty)
+                      const title = a.source === 'PRODUCT_STOCK'
+                        ? 'Stock propio del producto (receta inactiva o sin ingredientes)'
+                        : a.limitingIngredient ? `Limita: ${a.limitingIngredient}` : undefined
+                      if (qty <= 0) {
+                        return (
+                          <span
+                            className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700"
+                            title={title}
+                          >
+                            Agotado
+                          </span>
+                        )
+                      }
+                      return (
+                        <span
+                          className={`font-medium ${qty <= 5 ? 'text-amber-600' : 'text-emerald-600'}`}
+                          title={title}
+                        >
+                          {formatQuantity(qty)}
+                        </span>
+                      )
+                    })()}
+                  </td>
                   <td className="table-cell">
                     <div className="flex items-center justify-center gap-2">
                       <button onClick={() => openEdit(r)} className="p-2 rounded-lg hover:bg-primary-100 text-gray-500">

@@ -10,7 +10,8 @@ import { categoryService } from '@/core/api/categoryService'
 import { customerService } from '@/core/api/customerService'
 import { invoiceService } from '@/core/api/invoiceService'
 import { tableService } from '@/core/api/tableService'
-import { Product, Category, Customer, RestaurantTable } from '@/types'
+import { recipeService } from '@/core/api/recipeService'
+import { Product, Category, Customer, RestaurantTable, RecipeAvailability } from '@/types'
 import { printInvoice } from '@/shared/utils/printInvoice'
 
 interface ProductWithCategory extends Product {
@@ -772,6 +773,7 @@ const POSPage = () => {
   const { subtotal, discountAmount, total, itemCount } = useSelector(selectCartTotal)
   
   const [products, setProducts] = useState<ProductWithCategory[]>([])
+  const [availabilityMap, setAvailabilityMap] = useState<Record<number, RecipeAvailability>>({})
   const [categories, setCategories] = useState<Category[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
@@ -847,22 +849,43 @@ const POSPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [productsRes, categoriesRes, customersRes] = await Promise.all([
+      const [productsRes, categoriesRes, customersRes, availabilityRes] = await Promise.all([
         productService.getActive(),
         categoryService.getActive(),
-        customerService.getAll()
+        customerService.getAll(),
+        // Si el endpoint de disponibilidad falla, no bloquea el POS
+        recipeService.getAvailability().catch(() => [] as RecipeAvailability[])
       ])
       setProducts((productsRes as any[]).map(normalizeProduct))
       setCategories(categoriesRes as Category[])
       // Filtrar solo clientes activos
       const allCustomers = ((customersRes as any).content || customersRes) as Customer[]
       setCustomers(allCustomers.filter((c: Customer) => c.isActive !== false))
+
+      const map: Record<number, RecipeAvailability> = {}
+      ;(availabilityRes as RecipeAvailability[]).forEach(a => { map[a.productId] = a })
+      setAvailabilityMap(map)
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Error al cargar productos')
     } finally {
       setLoading(false)
     }
+  }
+
+  /**
+   * Stock vendible del producto: si tiene receta, es lo que se puede
+   * producir con los insumos disponibles; si no, su stock propio.
+   * Fuente RECIPE se aproxima a unidades enteras (el POS vende unidades).
+   */
+  const getEffectiveStock = (productId: number): number => {
+    const avail = availabilityMap[productId]
+    if (avail && avail.producibleQty != null) {
+      return avail.source === 'RECIPE'
+        ? Math.floor(Number(avail.producibleQty))
+        : Number(avail.producibleQty)
+    }
+    return products.find(p => p.id === productId)?.inventory?.quantity || 0
   }
 
   const filteredCustomers = customers.filter(c =>
@@ -1204,7 +1227,8 @@ const POSPage = () => {
           ) : (
             <div className={`grid ${gridClasses[cardSize]} gap-4`}>
               {filteredProducts.map((product) => {
-                const stock = product.inventory?.quantity || 0
+                const avail = availabilityMap[product.id]
+                const stock = getEffectiveStock(product.id)
                 const cartItem = items.find(i => i.id === product.id)
                 const cartQty = cartItem?.quantity || 0
                 const availableStock = stock - cartQty
@@ -1241,7 +1265,9 @@ const POSPage = () => {
                     <p className="font-semibold text-gray-800 text-sm line-clamp-2 mb-2 leading-snug">{product.name}</p>
                     <div className="flex items-center justify-between mt-auto">
                       <p className="text-primary-600 font-bold text-base">{formatCurrency(product.salePrice)}</p>
-                      <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
+                      <span
+                        title={avail?.limitingIngredient ? `Limita: ${avail.limitingIngredient}` : undefined}
+                        className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
                         stock === 0 ? 'bg-red-100 text-red-700 border border-red-200' :
                         stock <= (product.inventory?.minStock || 5) ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                         'bg-green-50 text-green-700 border border-green-200'
@@ -1403,8 +1429,7 @@ const POSPage = () => {
             </div>
           ) : (
             items.map((item) => {
-              const product = products.find(p => p.id === item.id)
-              const maxStock = product?.inventory?.quantity || 0
+              const maxStock = getEffectiveStock(item.id)
               const canIncrement = item.quantity < maxStock
 
               return (

@@ -1,8 +1,10 @@
 import api from './axiosInstance'
-import { Recipe } from '@/types'
+import { Recipe, RecipeAvailability } from '@/types'
 
 export const recipeService = {
   getAll: () => api.get<Recipe[]>('/recipes'),
+
+  getAvailability: () => api.get<RecipeAvailability[]>('/recipes/availability'),
 
   getByProductId: (productId: number) =>
     api.get<Recipe>(`/recipes/product/${productId}`),
