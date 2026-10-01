@@ -351,13 +351,115 @@ const ReportsPage = () => {
 
   const exportExpensesToExcel = () => {
     try {
-      const headerStyle: any = {
-        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: (theme.secondaryColor || '#7c3aed').replace('#', '').toUpperCase() } },
+      const primaryRgb = (theme.secondaryColor || '#7c3aed').replace('#', '').toUpperCase()
+      const companyName = company.companyName || 'Mi Negocio'
+      const infoLine = [
+        (company as any).nit ? `NIT: ${(company as any).nit}` : '',
+        (company as any).phone ? `Tel: ${(company as any).phone}` : '',
+        (company as any).address || '',
+      ].filter(Boolean).join('  ·  ')
+
+      const thinBorder: any = {
+        top: { style: 'thin', color: { rgb: '9CA3AF' } },
+        bottom: { style: 'thin', color: { rgb: '9CA3AF' } },
+        left: { style: 'thin', color: { rgb: '9CA3AF' } },
+        right: { style: 'thin', color: { rgb: '9CA3AF' } },
+      }
+      const titleStyle: any = {
+        font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: primaryRgb } },
         alignment: { horizontal: 'center', vertical: 'center' },
       }
-      const currencyStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' } }
+      const infoStyle: any = {
+        font: { sz: 9, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: primaryRgb } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      }
+      const subtitleStyle: any = {
+        font: { bold: true, sz: 10, color: { rgb: primaryRgb } },
+        fill: { fgColor: { rgb: 'F3F4F6' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      }
+      const headerStyle: any = {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: primaryRgb } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: thinBorder,
+      }
+      const cellStyle: any = { border: thinBorder, alignment: { vertical: 'center' } }
+      const zebraStyle: any = { border: thinBorder, fill: { fgColor: { rgb: 'FFF7ED' } }, alignment: { vertical: 'center' } }
+      const currencyStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' }, border: thinBorder }
+      const currencyZebraStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' }, border: thinBorder, fill: { fgColor: { rgb: 'FFF7ED' } } }
+      const percentStyle: any = { numFmt: '0.0%', alignment: { horizontal: 'right' }, border: thinBorder }
+      const totalLabelStyle: any = { font: { bold: true }, border: thinBorder, fill: { fgColor: { rgb: 'FFEDD5' } } }
+      const totalCurrencyStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' }, border: thinBorder, font: { bold: true }, fill: { fgColor: { rgb: 'FFEDD5' } } }
+      // Ganancia: verde suave si positiva, rojo suave si negativa
+      const profitPosStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' }, border: thinBorder, fill: { fgColor: { rgb: 'D1FAE5' } }, font: { color: { rgb: '065F46' }, bold: true } }
+      const profitNegStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' }, border: thinBorder, fill: { fgColor: { rgb: 'FEE2E2' } }, font: { color: { rgb: '991B1B' }, bold: true } }
+      const profitPosTotalStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' }, border: thinBorder, fill: { fgColor: { rgb: 'A7F3D0' } }, font: { color: { rgb: '065F46' }, bold: true } }
+      const profitNegTotalStyle: any = { numFmt: '"$"#,##0', alignment: { horizontal: 'right' }, border: thinBorder, fill: { fgColor: { rgb: 'FECACA' } }, font: { color: { rgb: '991B1B' }, bold: true } }
+
+      // Estructura por hoja: r0 empresa, r1 info (NIT/tel), r2 título+período, r3 vacío, r4 header, datos desde r5, TOTAL al final
+      const styleSheet = (ws: any, colCount: number, dataCount: number, moneyCols: number[], pctCols: number[] = [], profitCol?: number) => {
+        ws['!merges'] = [
+          { s: { r: 0, c: 0 }, e: { r: 0, c: colCount - 1 } },
+          { s: { r: 1, c: 0 }, e: { r: 1, c: colCount - 1 } },
+          { s: { r: 2, c: 0 }, e: { r: 2, c: colCount - 1 } },
+        ]
+        // Asegurar celdas en filas combinadas para que el borde cubra todo el ancho
+        for (let r = 0; r <= 2; r++) {
+          for (let c = 0; c < colCount; c++) {
+            const ref = XLSX.utils.encode_cell({ r, c })
+            if (!ws[ref]) ws[ref] = { t: 's', v: '' }
+            ws[ref].s = r === 0 ? titleStyle : r === 1 ? infoStyle : subtitleStyle
+          }
+        }
+        for (let c = 0; c < colCount; c++) {
+          const hRef = XLSX.utils.encode_cell({ r: 4, c })
+          if (ws[hRef]) ws[hRef].s = headerStyle
+        }
+        for (let r = 0; r < dataCount; r++) {
+          const zebra = r % 2 === 1
+          for (let c = 0; c < colCount; c++) {
+            const ref = XLSX.utils.encode_cell({ r: r + 5, c })
+            if (!ws[ref]) continue
+            if (profitCol !== undefined && c === profitCol) {
+              ws[ref].s = safeNum(ws[ref].v) >= 0 ? profitPosStyle : profitNegStyle
+            } else if (moneyCols.includes(c)) ws[ref].s = zebra ? currencyZebraStyle : currencyStyle
+            else if (pctCols.includes(c)) ws[ref].s = percentStyle
+            else ws[ref].s = zebra ? zebraStyle : cellStyle
+          }
+        }
+        const totalRow = 5 + dataCount
+        for (let c = 0; c < colCount; c++) {
+          const ref = XLSX.utils.encode_cell({ r: totalRow, c })
+          if (!ws[ref]) continue
+          if (profitCol !== undefined && c === profitCol) {
+            ws[ref].s = safeNum(ws[ref].v) >= 0 ? profitPosTotalStyle : profitNegTotalStyle
+          } else {
+            ws[ref].s = moneyCols.includes(c) || pctCols.includes(c) ? totalCurrencyStyle : totalLabelStyle
+          }
+        }
+        // Borde exterior grueso en todo el bloque (r0..totalRow)
+        for (let r = 0; r <= totalRow; r++) {
+          for (let c = 0; c < colCount; c++) {
+            const ref = XLSX.utils.encode_cell({ r, c })
+            const cell = ws[ref]
+            if (!cell) continue
+            const b: any = { ...(cell.s?.border || {}) }
+            const thick = { style: 'medium', color: { rgb: primaryRgb } }
+            if (r === 0) b.top = thick
+            if (r === totalRow) b.bottom = thick
+            if (c === 0) b.left = thick
+            if (c === colCount - 1) b.right = thick
+            cell.s = { ...(cell.s || {}), border: { ...thinBorder, ...b } }
+          }
+        }
+        ws['!rows'] = [{ hpt: 24 }, { hpt: 16 }, { hpt: 18 }, {}, { hpt: 20 }]
+      }
+
       const wb = XLSX.utils.book_new()
+      const totalGastos = expenses.reduce((s, e) => s + safeNum(e.amount), 0)
 
       // === GASTOS SHEET ===
       const expHeaders = ['Fecha', 'Descripción', 'Categoría', 'Método Pago', 'Monto', 'Notas', 'Registrado por']
@@ -370,18 +472,50 @@ const ReportsPage = () => {
         e.notes || '',
         e.createdByName || '',
       ])
-      const expAoA = [expHeaders, ...expData, [], ['', '', '', 'TOTAL', expenses.reduce((s, e) => s + safeNum(e.amount), 0), '', '']]
+      const expAoA: any[][] = [
+        [companyName],
+        [infoLine],
+        [`GASTOS — Período ${dateRange.start} a ${dateRange.end}`],
+        [],
+        expHeaders,
+        ...expData,
+        ['', '', '', 'TOTAL', totalGastos, '', ''],
+      ]
       const wsExp = XLSX.utils.aoa_to_sheet(expAoA)
-      expHeaders.forEach((_, i) => {
-        const ref = XLSX.utils.encode_cell({ r: 0, c: i })
-        if (wsExp[ref]) wsExp[ref].s = headerStyle
-      })
-      expData.forEach((_, rowIdx) => {
-        const ref = XLSX.utils.encode_cell({ r: rowIdx + 1, c: 4 })
-        if (wsExp[ref]) wsExp[ref].s = currencyStyle
-      })
+      styleSheet(wsExp, expHeaders.length, expData.length, [4])
       wsExp['!cols'] = [{ wch: 12 }, { wch: 40 }, { wch: 18 }, { wch: 15 }, { wch: 14 }, { wch: 30 }, { wch: 18 }]
       XLSX.utils.book_append_sheet(wb, wsExp, 'Gastos')
+
+      // === RESUMEN POR CATEGORÍA SHEET ===
+      const byCategory = new Map<string, { count: number; total: number }>()
+      expenses.forEach((e) => {
+        const key = e.category || 'OTROS'
+        const cur = byCategory.get(key) || { count: 0, total: 0 }
+        cur.count += 1
+        cur.total += safeNum(e.amount)
+        byCategory.set(key, cur)
+      })
+      const catRows = [...byCategory.entries()].sort((a, b) => b[1].total - a[1].total)
+      const sumHeaders = ['Categoría', '# Gastos', 'Total', '% del Total']
+      const sumData = catRows.map(([cat, v]) => [
+        EXPENSE_CATEGORY_LABELS[cat] || cat,
+        v.count,
+        v.total,
+        totalGastos > 0 ? v.total / totalGastos : 0,
+      ])
+      const sumAoA: any[][] = [
+        [companyName],
+        [infoLine],
+        [`RESUMEN DE GASTOS POR CATEGORÍA — ${dateRange.start} a ${dateRange.end}`],
+        [],
+        sumHeaders,
+        ...sumData,
+        ['TOTAL', expenses.length, totalGastos, 1],
+      ]
+      const wsSum = XLSX.utils.aoa_to_sheet(sumAoA)
+      styleSheet(wsSum, sumHeaders.length, sumData.length, [2], [3])
+      wsSum['!cols'] = [{ wch: 22 }, { wch: 12 }, { wch: 16 }, { wch: 14 }]
+      XLSX.utils.book_append_sheet(wb, wsSum, 'ResumenPorCategoria')
 
       // === VENTAS VS GASTOS SHEET ===
       if (profitComparison) {
@@ -392,18 +526,17 @@ const ReportsPage = () => {
           safeNum(d.expenses),
           safeNum(d.profit),
         ])
-        const cmpAoA = [cmpHeaders, ...cmpData, [], ['TOTAL', safeNum(profitComparison.totalNetSales), safeNum(profitComparison.totalExpenses), safeNum(profitComparison.totalProfit)]]
+        const cmpAoA: any[][] = [
+          [companyName],
+          [infoLine],
+          [`VENTAS NETAS VS GASTOS — ${dateRange.start} a ${dateRange.end}`],
+          [],
+          cmpHeaders,
+          ...cmpData,
+          ['TOTAL', safeNum(profitComparison.totalNetSales), safeNum(profitComparison.totalExpenses), safeNum(profitComparison.totalProfit)],
+        ]
         const wsCmp = XLSX.utils.aoa_to_sheet(cmpAoA)
-        cmpHeaders.forEach((_, i) => {
-          const ref = XLSX.utils.encode_cell({ r: 0, c: i })
-          if (wsCmp[ref]) wsCmp[ref].s = headerStyle
-        })
-        cmpData.forEach((_, rowIdx) => {
-          [1, 2, 3].forEach((c) => {
-            const ref = XLSX.utils.encode_cell({ r: rowIdx + 1, c })
-            if (wsCmp[ref]) wsCmp[ref].s = currencyStyle
-          })
-        })
+        styleSheet(wsCmp, cmpHeaders.length, cmpData.length, [1, 2, 3], [], 3)
         wsCmp['!cols'] = [{ wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
         XLSX.utils.book_append_sheet(wb, wsCmp, 'VentasVsGastos')
       }
