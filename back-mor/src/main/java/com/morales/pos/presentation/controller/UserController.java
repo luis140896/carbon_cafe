@@ -17,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'users.read')")
 public class UserController {
 
     private final UserService userService;
@@ -33,12 +33,14 @@ public class UserController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'users.manage')")
     public ResponseEntity<ApiResponse<UserResponse>> create(@Valid @RequestBody CreateUserRequest request) {
         UserResponse user = userService.create(request);
         return ResponseEntity.ok(ApiResponse.success(user, "Usuario creado exitosamente"));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'users.manage')")
     public ResponseEntity<ApiResponse<UserResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request) {
@@ -47,12 +49,14 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'users.manage')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         userService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Usuario eliminado exitosamente"));
     }
 
     @PostMapping("/{id}/change-password")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'users.manage')")
     public ResponseEntity<ApiResponse<Void>> changePassword(
             @PathVariable Long id,
             @RequestBody Map<String, String> request) {

@@ -61,16 +61,26 @@ public class InventoryService {
 
     @Transactional
     public InventoryResponse addStock(Long productId, BigDecimal quantity, String reason, User user) {
-        return adjustStock(productId, quantity, MovementType.ENTRADA, reason, user);
+        // Atomic increase
+        int affected = inventoryRepository.increaseStock(productId, quantity);
+        if (affected == 0) {
+            throw new RuntimeException("No existe control de inventario para el producto ID: " + productId);
+        }
+        return recordMovement(productId, quantity, MovementType.ENTRADA, reason, user);
     }
 
     @Transactional
     public InventoryResponse removeStock(Long productId, BigDecimal quantity, String reason, User user) {
-        Inventory inventory = findEntityByProductId(productId);
-        if (inventory.getQuantity().compareTo(quantity) < 0) {
+        // Atomic decrease with guard against negative stock
+        int affected = inventoryRepository.decreaseStock(productId, quantity);
+        if (affected == 0) {
+            Inventory inventory = inventoryRepository.findByProductId(productId).orElse(null);
+            if (inventory == null) {
+                throw new RuntimeException("No existe control de inventario para el producto ID: " + productId);
+            }
             throw new RuntimeException("Stock insuficiente. Disponible: " + inventory.getQuantity());
         }
-        return adjustStock(productId, quantity.negate(), MovementType.SALIDA, reason, user);
+        return recordMovement(productId, quantity.negate(), MovementType.SALIDA, reason, user);
     }
 
     @Transactional
@@ -81,21 +91,37 @@ public class InventoryService {
         if (quantity.stripTrailingZeros().scale() > 3) {
             throw new IllegalArgumentException("La cantidad admite máximo 3 decimales");
         }
+
         Inventory inventory = findEntityByProductId(productId);
         BigDecimal previousQuantity = inventory.getQuantity();
         BigDecimal newQuantity = previousQuantity.add(quantity);
-        
+
         if (newQuantity.compareTo(BigDecimal.ZERO) < 0) {
             throw new RuntimeException("El stock no puede ser negativo");
         }
-        
-        inventory.setQuantity(newQuantity);
-        inventory.setUpdatedAt(LocalDateTime.now());
-        
+
+        // Use atomic update to avoid read-modify-write races
+        int affected = type == MovementType.ENTRADA
+                ? inventoryRepository.increaseStock(productId, quantity)
+                : inventoryRepository.decreaseStock(productId, quantity.abs());
+        if (affected == 0) {
+            throw new RuntimeException("No se pudo actualizar el stock; puede que el producto no controle inventario.");
+        }
+
+        return recordMovement(productId, quantity, type, reason, user);
+    }
+
+    private InventoryResponse recordMovement(Long productId, BigDecimal quantity, MovementType type, String reason, User user) {
+        Inventory inventory = findEntityByProductId(productId);
+        BigDecimal previousQuantity = inventory.getQuantity().subtract(quantity);
+        BigDecimal newQuantity = inventory.getQuantity();
+
         if (type == MovementType.ENTRADA) {
             inventory.setLastRestockDate(LocalDateTime.now());
         }
-        
+        inventory.setUpdatedAt(LocalDateTime.now());
+        inventoryRepository.save(inventory);
+
         InventoryMovement movement = InventoryMovement.builder()
                 .product(inventory.getProduct())
                 .movementType(type)
@@ -105,14 +131,11 @@ public class InventoryService {
                 .reason(reason)
                 .user(user)
                 .build();
-        
         movementRepository.save(movement);
-        Inventory savedInventory = inventoryRepository.save(inventory);
-        
-        log.info("Stock ajustado para producto {}: {} -> {} ({})", 
+
+        log.info("Stock ajustado para producto {}: {} -> {} ({})",
                 productId, previousQuantity, newQuantity, type);
 
-        // Check stock alerts
         try {
             String productName = inventory.getProduct().getName();
             int currentQty = newQuantity.intValue();
@@ -126,7 +149,7 @@ public class InventoryService {
             log.warn("Error al crear notificación de stock: {}", e.getMessage());
         }
 
-        return InventoryResponse.fromEntity(savedInventory);
+        return InventoryResponse.fromEntity(inventory);
     }
 
     @Transactional

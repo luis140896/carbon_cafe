@@ -13,7 +13,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/kitchen")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'COCINERO', 'CAJERO')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'COCINERO', 'CAJERO') or @securityService.hasPermission(authentication, 'kitchen.view')")
 public class KitchenController {
 
     private final KitchenService kitchenService;
@@ -31,6 +31,7 @@ public class KitchenController {
      * Update order status (NEW SYSTEM)
      */
     @PutMapping("/orders/{orderId}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'COCINERO') or @securityService.hasPermission(authentication, 'kitchen.update_status')")
     public ResponseEntity<?> updateOrderStatus(
             @PathVariable Long orderId,
             @RequestBody Map<String, String> request) {

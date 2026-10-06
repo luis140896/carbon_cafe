@@ -21,7 +21,7 @@ public class CompanyConfigController {
     }
 
     @PutMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.hasPermission(authentication, 'settings.manage')")
     public ResponseEntity<ApiResponse<CompanyConfig>> updateConfig(@RequestBody CompanyConfig config) {
         CompanyConfig updated = configService.updateConfig(config);
         return ResponseEntity.ok(ApiResponse.success(updated, "Configuración actualizada exitosamente"));

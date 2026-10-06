@@ -14,6 +14,7 @@ import java.util.stream.Stream;
 @Getter
 public class CustomUserDetails implements UserDetails {
 
+    private final User user;
     private final Long id;
     private final String username;
     private final String email;
@@ -24,6 +25,7 @@ public class CustomUserDetails implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
 
     public CustomUserDetails(User user) {
+        this.user = user;
         this.id = user.getId();
         this.username = user.getUsername();
         this.email = user.getEmail();
@@ -38,7 +40,7 @@ public class CustomUserDetails implements UserDetails {
         
         this.authorities = Stream.concat(
                 Stream.of(new SimpleGrantedAuthority("ROLE_" + (user.getRole() != null ? user.getRole().getName() : "USER"))),
-                permissions.stream().map(SimpleGrantedAuthority::new)
+                permissions.stream().map(p -> new SimpleGrantedAuthority(p.replace(':', '.')))
         ).collect(Collectors.toList());
     }
 

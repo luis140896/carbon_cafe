@@ -37,6 +37,8 @@ public class InvoiceService {
     private final StockDeductionService stockDeductionService;
     private final SseService sseService;
     private final NotificationService notificationService;
+    private final InvoiceSequenceService invoiceSequenceService;
+    private final PricingService pricingService;
 
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(Pageable pageable) {
@@ -82,7 +84,7 @@ public class InvoiceService {
     public List<InvoiceResponse> findTodaySales() {
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
         LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59);
-        return invoiceRepository.findByCreatedAtBetweenOrderByCreatedAtDesc(startOfDay, endOfDay).stream()
+        return invoiceRepository.findByDateRangeAndStatus(startOfDay, endOfDay, InvoiceStatus.COMPLETADA).stream()
                 .map(inv -> InvoiceResponse.fromEntity(inv, false))
                 .collect(Collectors.toList());
     }
@@ -148,7 +150,7 @@ public class InvoiceService {
                     .product(product)
                     .productName(product.getName())                  // snapshot: nombre al momento de venta
                     .quantity(detailRequest.getQuantity())
-                    .unitPrice(detailRequest.getUnitPrice())         // precio enviado desde el frontend
+                    .unitPrice(pricingService.resolveSalePrice(product)) // precio con promoción aplicada, no el enviado por el cliente
                     .costPrice(product.getCostPrice())               // costo para cálculo de margen
                     .discountAmount(detailRequest.getDiscountAmount() != null ? detailRequest.getDiscountAmount() : BigDecimal.ZERO)
                     .notes(detailRequest.getNotes())                 // exigencias/notas del cliente
@@ -237,14 +239,11 @@ public class InvoiceService {
             throw new IllegalArgumentException("La factura ya está anulada");
         }
 
-        for (InvoiceDetail detail : invoice.getDetails()) {
-            inventoryService.addStock(
-                    detail.getProduct().getId(),
-                    detail.getQuantity(),
-                    "Anulación - Factura " + invoice.getInvoiceNumber(),
-                    user
-            );
-        }
+        // Restaurar stock usando el mismo motor de expansión de recetas que la venta
+        List<StockDeductionService.SaleLine> stockLines = invoice.getDetails().stream()
+                .map(d -> new StockDeductionService.SaleLine(d.getProduct().getId(), d.getQuantity()))
+                .toList();
+        stockDeductionService.restore(stockLines, "Anulación - Factura " + invoice.getInvoiceNumber(), user);
 
         invoice.setStatus(InvoiceStatus.ANULADA);
         invoice.setVoidedBy(user);
@@ -264,17 +263,16 @@ public class InvoiceService {
     }
 
     private String generateInvoiceNumber() {
-        String prefix = "V";
-        String datePart = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMdd"));
-        Long count = invoiceRepository.countByInvoiceNumberStartingWith(prefix + datePart) + 1;
-        return String.format("%s%s-%04d", prefix, datePart, count);
+        String prefix = "V" + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMdd"));
+        Long sequence = invoiceSequenceService.nextValue(prefix);
+        return String.format("%s-%04d", prefix, sequence);
     }
 
     @Transactional(readOnly = true)
     public BigDecimal getTodaySalesTotal() {
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
         LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59);
-        BigDecimal total = invoiceRepository.sumTotalByDateRange(startOfDay, endOfDay);
+        BigDecimal total = invoiceRepository.sumTotalByDateRangeAndStatus(startOfDay, endOfDay, InvoiceStatus.COMPLETADA);
         return total != null ? total : BigDecimal.ZERO;
     }
 
@@ -282,6 +280,6 @@ public class InvoiceService {
     public Long getTodaySalesCount() {
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
         LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59);
-        return invoiceRepository.countByCreatedAtBetween(startOfDay, endOfDay);
+        return invoiceRepository.countByCreatedAtBetweenAndStatus(startOfDay, endOfDay, InvoiceStatus.COMPLETADA);
     }
 }

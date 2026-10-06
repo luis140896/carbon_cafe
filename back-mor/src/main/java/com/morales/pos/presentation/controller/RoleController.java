@@ -23,7 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/roles")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'roles.manage')")
 public class RoleController {
 
     private final RoleService roleService;

@@ -11,7 +11,8 @@ import { customerService } from '@/core/api/customerService'
 import { invoiceService } from '@/core/api/invoiceService'
 import { tableService } from '@/core/api/tableService'
 import { recipeService } from '@/core/api/recipeService'
-import { Product, Category, Customer, RestaurantTable, RecipeAvailability } from '@/types'
+import { promotionService } from '@/core/api/promotionService'
+import { Product, Category, Customer, RestaurantTable, RecipeAvailability, Promotion } from '@/types'
 import { printInvoice } from '@/shared/utils/printInvoice'
 
 interface ProductWithCategory extends Product {
@@ -774,6 +775,7 @@ const POSPage = () => {
   
   const [products, setProducts] = useState<ProductWithCategory[]>([])
   const [availabilityMap, setAvailabilityMap] = useState<Record<number, RecipeAvailability>>({})
+  const [todayPromotion, setTodayPromotion] = useState<Promotion | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
@@ -849,12 +851,13 @@ const POSPage = () => {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [productsRes, categoriesRes, customersRes, availabilityRes] = await Promise.all([
+      const [productsRes, categoriesRes, customersRes, availabilityRes, promotionRes] = await Promise.all([
         productService.getActive(),
         categoryService.getActive(),
         customerService.getAll(),
         // Si el endpoint de disponibilidad falla, no bloquea el POS
-        recipeService.getAvailability().catch(() => [] as RecipeAvailability[])
+        recipeService.getAvailability().catch(() => [] as RecipeAvailability[]),
+        promotionService.getToday().catch(() => null)
       ])
       setProducts((productsRes as any[]).map(normalizeProduct))
       setCategories(categoriesRes as Category[])
@@ -865,6 +868,9 @@ const POSPage = () => {
       const map: Record<number, RecipeAvailability> = {}
       ;(availabilityRes as RecipeAvailability[]).forEach(a => { map[a.productId] = a })
       setAvailabilityMap(map)
+
+      const promo = (promotionRes as any)?.data ?? promotionRes
+      setTodayPromotion(promo && promo.id ? promo : null)
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Error al cargar productos')
@@ -1006,6 +1012,12 @@ const POSPage = () => {
 
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value)
+
+  const getDiscountedPrice = (product: Product): number => {
+    if (!todayPromotion?.applyToAllProducts || !todayPromotion.discountPercent) return product.salePrice
+    const discount = todayPromotion.discountPercent / 100
+    return Math.round(product.salePrice * (1 - discount))
+  }
 
   const gridClasses = {
     small: 'grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
@@ -1246,7 +1258,7 @@ const POSPage = () => {
                         id: product.id, 
                         code: product.code, 
                         name: product.name, 
-                        price: product.salePrice 
+                        price: getDiscountedPrice(product)
                       }))
                     }}
                     disabled={stock === 0}
@@ -1264,7 +1276,17 @@ const POSPage = () => {
                     <p className="text-[11px] text-gray-400 mb-0.5 font-mono">{product.code}</p>
                     <p className="font-semibold text-gray-800 text-sm line-clamp-2 mb-2 leading-snug">{product.name}</p>
                     <div className="flex items-center justify-between mt-auto">
-                      <p className="text-primary-600 font-bold text-base">{formatCurrency(product.salePrice)}</p>
+                      <div className="flex flex-col">
+                        {todayPromotion?.applyToAllProducts && (
+                          <p className="text-gray-400 text-xs line-through">{formatCurrency(product.salePrice)}</p>
+                        )}
+                        <p className="text-primary-600 font-bold text-base">{formatCurrency(getDiscountedPrice(product))}</p>
+                      </div>
+                      {todayPromotion?.applyToAllProducts && (
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                          -{todayPromotion.discountPercent}%
+                        </span>
+                      )}
                       <span
                         title={avail?.limitingIngredient ? `Limita: ${avail.limitingIngredient}` : undefined}
                         className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
@@ -1436,7 +1458,14 @@ const POSPage = () => {
                 <div key={item.id} className="flex items-center gap-3 p-3 bg-primary-50 rounded-xl">
                   <div className="flex-1">
                     <p className="font-medium text-gray-800 text-sm">{item.name}</p>
-                    <p className="text-primary-600 font-semibold">{formatCurrency(item.price)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-primary-600 font-semibold">{formatCurrency(item.price)}</p>
+                      {todayPromotion?.applyToAllProducts && (
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full">
+                          -{todayPromotion.discountPercent}%
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400">Stock: {maxStock}</p>
                     <input
                       type="text"

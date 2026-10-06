@@ -75,7 +75,7 @@ public class TableController {
     // ==================== TABLE SESSIONS ====================
 
     @PostMapping("/{id}/open")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO') or @securityService.hasPermission(authentication, 'tables.open')")
     public ResponseEntity<ApiResponse<TableSessionResponse>> openTable(
             @PathVariable Long id,
             @Valid @RequestBody OpenTableRequest request,
@@ -86,7 +86,7 @@ public class TableController {
     }
 
     @PostMapping("/{id}/add-items")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO') or @securityService.hasPermission(authentication, 'tables.add_items')")
     public ResponseEntity<ApiResponse<TableSessionResponse>> addItems(
             @PathVariable Long id,
             @Valid @RequestBody AddTableItemsRequest request,
@@ -118,7 +118,7 @@ public class TableController {
     }
 
     @PostMapping("/{id}/pay")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO') or @securityService.hasPermission(authentication, 'pos.sell')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> payTable(
             @PathVariable Long id,
             @Valid @RequestBody PayTableRequest request,
@@ -129,7 +129,7 @@ public class TableController {
     }
 
     @PostMapping("/{id}/release")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'MESERO') or @securityService.hasPermission(authentication, 'tables.open')")
     public ResponseEntity<ApiResponse<TableResponse>> releaseTable(
             @PathVariable Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails) {

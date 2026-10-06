@@ -18,12 +18,7 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Actualizar contraseña del admin si existe
-        userRepository.findByUsername("admin").ifPresent(user -> {
-            String newHash = passwordEncoder.encode("admin123");
-            user.setPasswordHash(newHash);
-            userRepository.save(user);
-            log.info("Contraseña del usuario admin actualizada correctamente");
-        });
+        // No se modifica la contraseña del admin existente para evitar una puerta trasera
+        // en producción. El seed inicial se carga por Flyway en V2.
     }
 }

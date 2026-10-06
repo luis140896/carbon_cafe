@@ -9,6 +9,21 @@ interface RoleGuardProps {
   children: ReactNode
 }
 
+const normalize = (perm: string) => perm.replace(/:/g, '.')
+
+const hasPermission = (required: string, userPermissions: string[]): boolean => {
+  const req = normalize(required)
+  return userPermissions.some((p) => {
+    const np = normalize(p)
+    if (np === '*' || np === '.*') return true
+    if (np.endsWith('.*')) {
+      const prefix = np.slice(0, -2)
+      return req === prefix || req.startsWith(prefix + '.')
+    }
+    return np === req
+  })
+}
+
 const RoleGuard = ({ allowedRoles, requiredPermissions, children }: RoleGuardProps) => {
   const { user } = useSelector((state: RootState) => state.auth)
 
@@ -27,7 +42,7 @@ const RoleGuard = ({ allowedRoles, requiredPermissions, children }: RoleGuardPro
   const permOk =
     !requiredPermissions ||
     requiredPermissions.length === 0 ||
-    requiredPermissions.every((p) => permissions.includes(p))
+    requiredPermissions.every((p) => hasPermission(p, permissions))
 
   if (!roleOk || !permOk) {
     return <Navigate to="/" replace />

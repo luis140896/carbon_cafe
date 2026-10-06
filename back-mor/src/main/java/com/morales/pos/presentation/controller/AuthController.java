@@ -4,11 +4,13 @@ import com.morales.pos.application.dto.request.LoginRequest;
 import com.morales.pos.application.dto.response.ApiResponse;
 import com.morales.pos.application.dto.response.AuthResponse;
 import com.morales.pos.application.service.AuthService;
+import com.morales.pos.infrastructure.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -37,9 +39,13 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    @Operation(summary = "Cerrar sesión", description = "Invalida la sesión del usuario")
-    public ResponseEntity<ApiResponse<Void>> logout() {
-        // En una implementación completa, invalidaríamos el refresh token en la BD
+    @Operation(summary = "Cerrar sesión", description = "Invalida el refresh token de la sesión del usuario")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            Authentication authentication,
+            @RequestBody(required = false) Map<String, String> request) {
+        CustomUserDetails userDetails = authentication != null ? (CustomUserDetails) authentication.getPrincipal() : null;
+        String refreshToken = request != null ? request.get("refreshToken") : null;
+        authService.logout(userDetails != null ? userDetails.getUser() : null, refreshToken);
         return ResponseEntity.ok(ApiResponse.success(null, "Sesión cerrada exitosamente"));
     }
 }

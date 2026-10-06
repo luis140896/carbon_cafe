@@ -58,7 +58,7 @@ public class InvoiceController {
     }
 
     @GetMapping("/date-range")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'REPORTES')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'REPORTES') or @securityService.hasPermission(authentication, 'reports.view')")
     public ResponseEntity<ApiResponse<List<InvoiceResponse>>> findByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
@@ -75,7 +75,7 @@ public class InvoiceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'pos.sell')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> createSale(
             @Valid @RequestBody CreateSaleRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -86,7 +86,7 @@ public class InvoiceController {
     }
 
     @PostMapping("/{id}/void")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'invoices.void')")
     public ResponseEntity<ApiResponse<InvoiceResponse>> voidInvoice(
             @PathVariable Long id,
             @Valid @RequestBody VoidInvoiceRequest request,

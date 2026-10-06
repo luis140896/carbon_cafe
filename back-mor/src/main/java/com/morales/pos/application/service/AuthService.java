@@ -2,7 +2,9 @@ package com.morales.pos.application.service;
 
 import com.morales.pos.application.dto.request.LoginRequest;
 import com.morales.pos.application.dto.response.AuthResponse;
+import com.morales.pos.domain.entity.RefreshToken;
 import com.morales.pos.domain.entity.User;
+import com.morales.pos.domain.repository.RefreshTokenRepository;
 import com.morales.pos.domain.repository.UserRepository;
 import com.morales.pos.infrastructure.security.jwt.CustomUserDetails;
 import com.morales.pos.infrastructure.security.jwt.JwtTokenProvider;
@@ -17,6 +19,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 
 @Service
@@ -27,6 +31,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public AuthResponse login(LoginRequest request) {
@@ -54,6 +59,7 @@ public class AuthService {
             // Generar tokens
             String accessToken = jwtTokenProvider.generateAccessToken(authentication);
             String refreshToken = jwtTokenProvider.generateRefreshToken(request.getUsername());
+            saveRefreshToken(refreshToken, user);
 
             CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
 
@@ -88,6 +94,11 @@ public class AuthService {
             throw new BadCredentialsException("Refresh token inválido o expirado");
         }
 
+        String tokenHash = hashToken(refreshToken);
+        if (!refreshTokenRepository.existsByTokenHashAndRevokedFalseAndExpiresAtAfter(tokenHash, LocalDateTime.now())) {
+            throw new BadCredentialsException("Refresh token revocado o expirado");
+        }
+
         String username = jwtTokenProvider.getUsernameFromToken(refreshToken);
         User user = userRepository.findByUsernameWithRole(username)
                 .orElseThrow(() -> new BadCredentialsException("Usuario no encontrado"));
@@ -105,6 +116,9 @@ public class AuthService {
         String newAccessToken = jwtTokenProvider.generateAccessToken(authentication);
         String newRefreshToken = jwtTokenProvider.generateRefreshToken(username);
 
+        revokeRefreshToken(tokenHash);
+        saveRefreshToken(newRefreshToken, user);
+
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
@@ -119,5 +133,55 @@ public class AuthService {
                         .permissions(user.getRole().getPermissions())
                         .build())
                 .build();
+    }
+
+    @Transactional
+    public void logout(User user, String refreshToken) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            revokeRefreshToken(hashToken(refreshToken));
+        } else if (user != null) {
+            int revoked = refreshTokenRepository.revokeAllByUser(user);
+            log.info("Revocados {} refresh tokens del usuario {}", revoked, user.getUsername());
+        }
+    }
+
+    private void saveRefreshToken(String refreshToken, User user) {
+        LocalDateTime expiresAt = LocalDateTime.now()
+                .plusSeconds(jwtTokenProvider.getRefreshTokenExpiration() / 1000);
+
+        RefreshToken token = RefreshToken.builder()
+                .tokenHash(hashToken(refreshToken))
+                .user(user)
+                .issuedAt(LocalDateTime.now())
+                .expiresAt(expiresAt)
+                .revoked(false)
+                .build();
+        refreshTokenRepository.save(token);
+    }
+
+    private void revokeRefreshToken(String tokenHash) {
+        refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
+            token.setRevoked(true);
+            refreshTokenRepository.save(token);
+            log.info("Refresh token revocado para usuario {}", token.getUser().getUsername());
+        });
+    }
+
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return bytesToHex(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al hashear token", e);
+        }
+    }
+
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
     }
 }

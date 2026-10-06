@@ -36,6 +36,8 @@ public class TableService {
     private final InventoryRepository inventoryRepository;
     private final StockDeductionService stockDeductionService;
     private final SseService sseService;
+    private final InvoiceSequenceService invoiceSequenceService;
+    private final PricingService pricingService;
 
     // ==================== TABLE CRUD ====================
 
@@ -121,7 +123,7 @@ public class TableService {
         RestaurantTable table = findTableEntity(id);
         TableStatus status = TableStatus.valueOf(newStatus);
 
-        if (table.getStatus() == TableStatus.OCUPADA && status != TableStatus.FUERA_DE_SERVICIO) {
+        if (table.getStatus() == TableStatus.OCUPADA) {
             throw new IllegalArgumentException("No se puede cambiar el estado de una mesa ocupada. Cierre primero la sesión.");
         }
 
@@ -228,7 +230,7 @@ public class TableService {
                     .product(product)
                     .productName(product.getName())
                     .quantity(item.getQuantity())
-                    .unitPrice(item.getUnitPrice())
+                    .unitPrice(pricingService.resolveSalePrice(product))
                     .costPrice(product.getCostPrice())
                     .discountAmount(discountAmt)
                     .notes(item.getNotes())
@@ -243,19 +245,16 @@ public class TableService {
             InvoiceDetail savedDetail = invoiceDetailRepository.save(detail);
             invoice.addDetail(savedDetail);
 
-            // Create kitchen order for each detail in the batch
-            try {
-                kitchenOrderService.createKitchenOrder(
-                        savedDetail,
-                        session.getRestaurantTable(),
-                        batchOrderTime,
-                        batchSequence,
-                        isPriorityBatch,
-                        priorityReason
-                );
-            } catch (Exception e) {
-                log.error("Error creating kitchen order for detail {}: {}", savedDetail.getId(), e.getMessage());
-            }
+            // Create kitchen order for each detail in the batch. Failures propagate so the
+            // whole transaction rolls back; we never bill an item without a kitchen ticket.
+            kitchenOrderService.createKitchenOrder(
+                    savedDetail,
+                    session.getRestaurantTable(),
+                    batchOrderTime,
+                    batchSequence,
+                    isPriorityBatch,
+                    priorityReason
+            );
         }
 
         // Descontar stock agregado (ingredientes de preparados + productos directos)
@@ -278,17 +277,7 @@ public class TableService {
 
         log.info("Items agregados a Mesa #{} - {} items", session.getRestaurantTable().getTableNumber(), request.getItems().size());
 
-        // Broadcast SSE event for kitchen
-        try {
-            sseService.broadcast("new_order", Map.of(
-                    "type", "NEW_TABLE_ITEMS",
-                    "tableNumber", session.getRestaurantTable().getTableNumber(),
-                    "invoiceId", invoice.getId(),
-                    "invoiceNumber", invoice.getInvoiceNumber()
-            ));
-        } catch (Exception e) {
-            log.warn("Error broadcasting SSE event: {}", e.getMessage());
-        }
+        // KitchenOrderService.createKitchenOrder already emits the SSE notification, so we avoid a duplicate broadcast.
 
         return TableSessionResponse.fromEntity(session, true);
     }
@@ -397,9 +386,24 @@ public class TableService {
         }
 
         // Process payment
-        invoice.setPaymentMethod(PaymentMethod.valueOf(request.getPaymentMethod()));
-        invoice.setAmountReceived(request.getAmountReceived());
-        invoice.setChangeAmount(request.getAmountReceived().subtract(invoice.getTotal()));
+        PaymentMethod paymentMethod = PaymentMethod.valueOf(request.getPaymentMethod());
+        BigDecimal amountReceived = request.getAmountReceived();
+
+        if (paymentMethod == PaymentMethod.MIXTO) {
+            BigDecimal cash = request.getCashAmount() != null ? request.getCashAmount() : BigDecimal.ZERO;
+            BigDecimal transfer = request.getTransferAmount() != null ? request.getTransferAmount() : BigDecimal.ZERO;
+            BigDecimal mixedTotal = cash.add(transfer);
+            if (mixedTotal.compareTo(invoice.getTotal()) < 0) {
+                throw new IllegalArgumentException("La suma de efectivo y transferencia no cubre el total de la factura");
+            }
+            amountReceived = mixedTotal;
+        } else if (amountReceived == null || amountReceived.compareTo(invoice.getTotal()) < 0) {
+            throw new IllegalArgumentException("El monto recibido es menor al total de la factura");
+        }
+
+        invoice.setPaymentMethod(paymentMethod);
+        invoice.setAmountReceived(amountReceived);
+        invoice.setChangeAmount(amountReceived.subtract(invoice.getTotal()));
         invoice.setStatus(InvoiceStatus.COMPLETADA);
         invoice.setPaymentStatus(PaymentStatus.PAGADO);
         // Pago mixto: guardar montos individuales
@@ -524,9 +528,8 @@ public class TableService {
     }
 
     private String generateTableInvoiceNumber(Integer tableNumber) {
-        String prefix = "M" + tableNumber + "-";
-        String datePart = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMdd"));
-        Long count = invoiceRepository.countByInvoiceNumberStartingWith(prefix + datePart) + 1;
-        return String.format("%s%s-%04d", prefix, datePart, count);
+        String prefix = "M" + tableNumber + "-" + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("MMdd"));
+        Long sequence = invoiceSequenceService.nextValue(prefix);
+        return String.format("%s-%04d", prefix, sequence);
     }
 }

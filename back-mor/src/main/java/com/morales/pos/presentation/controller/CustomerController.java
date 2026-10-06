@@ -53,14 +53,14 @@ public class CustomerController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'customers.create')")
     public ResponseEntity<ApiResponse<CustomerResponse>> create(@Valid @RequestBody CreateCustomerRequest request) {
         CustomerResponse created = customerService.create(request);
         return ResponseEntity.ok(ApiResponse.success(created, "Cliente creado exitosamente"));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAJERO', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'customers.update')")
     public ResponseEntity<ApiResponse<CustomerResponse>> update(
             @PathVariable Long id, 
             @Valid @RequestBody UpdateCustomerRequest request) {
@@ -69,7 +69,7 @@ public class CustomerController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'customers.delete')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         customerService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Cliente eliminado exitosamente"));

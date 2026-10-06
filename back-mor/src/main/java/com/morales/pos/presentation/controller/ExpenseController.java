@@ -28,7 +28,7 @@ public class ExpenseController {
     private final UserRepository userRepository;
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'REPORTES')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO', 'REPORTES') or @securityService.hasPermission(authentication, 'expenses.view')")
     public ResponseEntity<ApiResponse<List<ExpenseResponse>>> getByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -36,7 +36,7 @@ public class ExpenseController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO') or @securityService.hasPermission(authentication, 'expenses.create')")
     public ResponseEntity<ApiResponse<ExpenseResponse>> create(
             @Valid @RequestBody ExpenseRequest request,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
@@ -46,7 +46,7 @@ public class ExpenseController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR', 'CAJERO') or @securityService.hasPermission(authentication, 'expenses.update')")
     public ResponseEntity<ApiResponse<ExpenseResponse>> update(
             @PathVariable Long id,
             @Valid @RequestBody ExpenseRequest request) {
@@ -54,7 +54,7 @@ public class ExpenseController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR') or @securityService.hasPermission(authentication, 'expenses.delete')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         expenseService.delete(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Gasto eliminado exitosamente"));

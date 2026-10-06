@@ -11,8 +11,9 @@ import { productService } from '@/core/api/productService'
 import { categoryService } from '@/core/api/categoryService'
 import { customerService } from '@/core/api/customerService'
 import { invoiceService } from '@/core/api/invoiceService'
+import { promotionService } from '@/core/api/promotionService'
 import { printInvoice } from '@/shared/utils/printInvoice'
-import { RestaurantTable, TableSession, Product, Category, Customer, InvoiceDetail } from '@/types'
+import { RestaurantTable, TableSession, Product, Category, Customer, InvoiceDetail, Promotion } from '@/types'
 
 const getHttpErrorMessage = (error: any): string => {
   if (error?.response?.data?.message) {
@@ -64,6 +65,11 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value)
 }
 
+const getDiscountedPrice = (product: Product, promotion: Promotion | null): number => {
+  if (!promotion?.applyToAllProducts || !promotion.discountPercent) return product.salePrice
+  return Math.round(product.salePrice * (1 - promotion.discountPercent / 100))
+}
+
 const formatTime = (dateStr: string) => {
   const date = new Date(dateStr)
   return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
@@ -81,6 +87,7 @@ const TablesPage = () => {
   const [tables, setTables] = useState<RestaurantTable[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [todayPromotion, setTodayPromotion] = useState<Promotion | null>(null)
   const [loading, setLoading] = useState(true)
 
   // Dynamic configs — recalculate on each mount to pick up localStorage changes from TableSettingsPage
@@ -192,12 +199,15 @@ const TablesPage = () => {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const [prodRes, catRes] = await Promise.all([
+      const [prodRes, catRes, promoRes] = await Promise.all([
         productService.getActive(),
         categoryService.getActive(),
+        promotionService.getToday().catch(() => null),
       ])
       setProducts(Array.isArray(prodRes) ? prodRes : [])
       setCategories(Array.isArray(catRes) ? catRes : [])
+      const promo = (promoRes as any)?.data ?? promoRes
+      setTodayPromotion(promo && promo.id ? promo : null)
     } catch (err) {
       console.error('Error loading products/categories', err)
     }
@@ -304,7 +314,7 @@ const TablesPage = () => {
         items: itemsToAdd.map(i => ({
           productId: i.product.id,
           quantity: i.quantity,
-          unitPrice: i.product.salePrice,
+          unitPrice: getDiscountedPrice(i.product, todayPromotion),
           notes: i.notes || undefined,
         })),
         priority: priorityKitchenBatch,
@@ -1137,9 +1147,19 @@ const TablesPage = () => {
                           <p className="text-sm font-semibold text-gray-800 leading-snug">{product.name}</p>
                           <p className="text-xs text-gray-400 mt-0.5">{product.code}</p>
                         </div>
-                        <span className="text-sm font-bold text-primary-600 flex-shrink-0 bg-primary-50 px-2.5 py-1 rounded-lg">
-                          {formatCurrency(product.salePrice)}
-                        </span>
+                        <div className="flex flex-col items-end flex-shrink-0">
+                          {todayPromotion?.applyToAllProducts && (
+                            <span className="text-[10px] text-gray-400 line-through">{formatCurrency(product.salePrice)}</span>
+                          )}
+                          <span className="text-sm font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-lg">
+                            {formatCurrency(getDiscountedPrice(product, todayPromotion))}
+                          </span>
+                          {todayPromotion?.applyToAllProducts && (
+                            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 rounded-full mt-0.5">
+                              -{todayPromotion.discountPercent}%
+                            </span>
+                          )}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -1219,7 +1239,14 @@ const TablesPage = () => {
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.product.name}</p>
-                          <p className="text-xs text-gray-500">{formatCurrency(item.product.salePrice * item.quantity)}</p>
+                          {todayPromotion?.applyToAllProducts ? (
+                            <p className="text-xs text-gray-500">
+                              <span className="line-through text-gray-400 mr-1">{formatCurrency(item.product.salePrice * item.quantity)}</span>
+                              {formatCurrency(getDiscountedPrice(item.product, todayPromotion) * item.quantity)}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-gray-500">{formatCurrency(item.product.salePrice * item.quantity)}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5">
                           <button

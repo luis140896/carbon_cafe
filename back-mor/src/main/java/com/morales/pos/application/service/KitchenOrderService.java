@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class KitchenOrderService {
 
     private final KitchenOrderRepository kitchenOrderRepository;
+    private final InvoiceSequenceService invoiceSequenceService;
     private final SseService sseService;
 
     /**
@@ -33,7 +34,8 @@ public class KitchenOrderService {
 
     @Transactional(readOnly = true)
     public Integer getNextSequenceNumberForTable(Long tableId) {
-        return kitchenOrderRepository.findMaxSequenceNumberByTableId(tableId) + 1;
+        Long next = invoiceSequenceService.nextValue("KTABLE-" + tableId);
+        return next.intValue();
     }
 
     @Transactional

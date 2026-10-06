@@ -31,6 +31,22 @@ export interface Product {
   updatedAt: string
 }
 
+export interface Promotion {
+  id: number
+  name: string
+  description?: string
+  discountPercent: number
+  scheduleType: 'DAILY' | 'WEEKLY' | 'SPECIFIC_DATE'
+  daysOfWeek?: string
+  startDate?: string
+  endDate?: string
+  isActive: boolean
+  applyToAllProducts: boolean
+  priority: number
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Inventory {
   id: number
   productId: number
