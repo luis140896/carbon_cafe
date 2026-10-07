@@ -42,8 +42,10 @@ public class InvoiceService {
 
     @Transactional(readOnly = true)
     public Page<InvoiceResponse> findAll(Pageable pageable) {
-        return invoiceRepository.findAllExcludingOpen(pageable)
-                .map(inv -> InvoiceResponse.fromEntity(inv, false));
+        Page<Invoice> page = invoiceRepository.findAllExcludingOpen(pageable);
+        // Forzar carga de detalles para que el frontend pueda ordenar por cantidad de ítems
+        page.getContent().forEach(invoice -> invoice.getDetails().size());
+        return page.map(inv -> InvoiceResponse.fromEntity(inv, true));
     }
 
     @Transactional(readOnly = true)
@@ -190,7 +192,11 @@ public class InvoiceService {
         BigDecimal serviceChargeAmount;
         if (fixedServiceAmount.compareTo(BigDecimal.ZERO) > 0) {
             serviceChargeAmount = fixedServiceAmount;
-            serviceChargePercent = BigDecimal.ZERO;
+            // Si no vino porcentaje, calcular el equivalente sobre el subtotal
+            if (serviceChargePercent.compareTo(BigDecimal.ZERO) == 0 && subtotal.compareTo(BigDecimal.ZERO) > 0) {
+                serviceChargePercent = fixedServiceAmount.multiply(BigDecimal.valueOf(100))
+                        .divide(subtotal, 2, java.math.RoundingMode.HALF_UP);
+            }
         } else if (serviceChargePercent.compareTo(BigDecimal.ZERO) > 0) {
             serviceChargeAmount = afterDiscount.multiply(serviceChargePercent).divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
         } else {

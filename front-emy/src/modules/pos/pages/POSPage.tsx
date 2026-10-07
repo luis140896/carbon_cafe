@@ -470,6 +470,14 @@ interface PaymentModalProps {
   formatCurrency: (value: number) => string
 }
 
+const formatThousands = (value: string): string => {
+  const digits = value.replace(/\D/g, '')
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+const unformatThousands = (value: string): string => value.replace(/\./g, '')
+const parseFormatted = (value: string): number => parseFloat(unformatThousands(value)) || 0
+
 const PaymentModal = ({
   show,
   paymentMethod,
@@ -509,7 +517,7 @@ const PaymentModal = ({
     const serviceAmt = svc ? svcAmt : 0
     const dlvAmt = dlv ? dlvCharge : 0
     const discAmt = (total * discPercent) / 100
-    setAmountReceived((total + serviceAmt + dlvAmt - discAmt).toFixed(0))
+    setAmountReceived(formatThousands((total + serviceAmt + dlvAmt - discAmt).toFixed(0)))
   }
 
   return (
@@ -662,17 +670,19 @@ const PaymentModal = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto recibido</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={amountReceived}
-                  onChange={(e) => setAmountReceived(e.target.value)}
+                  onChange={(e) => setAmountReceived(formatThousands(e.target.value))}
                   className="input-field"
                   min={finalTotal}
+                  placeholder="0"
                 />
               </div>
-              {parseFloat(amountReceived) >= finalTotal && (
+              {parseFormatted(amountReceived) >= finalTotal && (
                 <div className="flex justify-between text-lg font-bold text-green-600">
                   <span>Cambio</span>
-                  <span>{formatCurrency(parseFloat(amountReceived) - finalTotal)}</span>
+                  <span>{formatCurrency(parseFormatted(amountReceived) - finalTotal)}</span>
                 </div>
               )}
             </>
@@ -682,15 +692,16 @@ const PaymentModal = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto en Efectivo</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={mixCashAmount}
                   onChange={(e) => {
-                    const val = e.target.value
+                    const val = formatThousands(e.target.value)
                     setMixCashAmount(val)
-                    const cash = parseFloat(val) || 0
+                    const cash = parseFormatted(val)
                     const remaining = Math.max(0, finalTotal - cash)
-                    setMixTransferAmount(remaining.toFixed(0))
-                    setAmountReceived((cash + remaining).toFixed(0))
+                    setMixTransferAmount(formatThousands(remaining.toFixed(0)))
+                    setAmountReceived(formatThousands((cash + remaining).toFixed(0)))
                   }}
                   className="input-field"
                   min="0"
@@ -700,15 +711,16 @@ const PaymentModal = ({
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto en Transferencia / Nequi</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={mixTransferAmount}
                   onChange={(e) => {
-                    const val = e.target.value
+                    const val = formatThousands(e.target.value)
                     setMixTransferAmount(val)
-                    const transfer = parseFloat(val) || 0
+                    const transfer = parseFormatted(val)
                     const remaining = Math.max(0, finalTotal - transfer)
-                    setMixCashAmount(remaining.toFixed(0))
-                    setAmountReceived((transfer + remaining).toFixed(0))
+                    setMixCashAmount(formatThousands(remaining.toFixed(0)))
+                    setAmountReceived(formatThousands((transfer + remaining).toFixed(0)))
                   }}
                   className="input-field"
                   min="0"
@@ -716,8 +728,8 @@ const PaymentModal = ({
                 />
               </div>
               {(() => {
-                const cash = parseFloat(mixCashAmount) || 0
-                const transfer = parseFloat(mixTransferAmount) || 0
+                const cash = parseFormatted(mixCashAmount)
+                const transfer = parseFormatted(mixTransferAmount)
                 const sumOk = Math.abs(cash + transfer - finalTotal) < 1
                 return (
                   <p className={`text-xs font-medium ${sumOk ? 'text-green-600' : 'text-red-500'}`}>
@@ -739,7 +751,7 @@ const PaymentModal = ({
           <Button
             variant="primary"
             className="w-full"
-            disabled={processing || (paymentMethod === 'EFECTIVO' && parseFloat(amountReceived) < finalTotal) || (paymentMethod === 'MIXTO' && Math.abs((parseFloat(mixCashAmount) || 0) + (parseFloat(mixTransferAmount) || 0) - finalTotal) >= 1)}
+            disabled={processing || (paymentMethod === 'EFECTIVO' && parseFormatted(amountReceived) < finalTotal) || (paymentMethod === 'MIXTO' && Math.abs(parseFormatted(mixCashAmount) + parseFormatted(mixTransferAmount) - finalTotal) >= 1)}
             onClick={onConfirm}
           >
             {processing ? (
@@ -1106,10 +1118,12 @@ const POSPage = () => {
           }))
         })
 
+        const serviceChargePercent = includeServiceCharge && total > 0 ? (serviceChargeValue / total) * 100 : 0
         const result = await tableService.payTable(selectedTableId, {
           paymentMethod: paymentMethod,
           amountReceived: parseFloat(amountReceived),
           discountPercent: (discountType === 'percent' ? discount : 0) + totalDiscountPercent,
+          serviceChargePercent: serviceChargePercent,
           serviceChargeAmount: includeServiceCharge ? serviceChargeValue : 0,
           deliveryChargeAmount: includeDelivery ? deliveryCharge : 0,
           cashAmount: paymentMethod === 'MIXTO' ? (parseFloat(mixCashAmount) || 0) : undefined,
@@ -1127,10 +1141,12 @@ const POSPage = () => {
         fetchTables()
       } else {
         // Normal POS sale (no table)
+        const serviceChargePercent = includeServiceCharge && total > 0 ? (serviceChargeValue / total) * 100 : 0
         const saleRequest = {
           customerId: customerId,
           paymentMethod: paymentMethod,
           discountPercent: (discountType === 'percent' ? discount : 0) + totalDiscountPercent,
+          serviceChargePercent: serviceChargePercent,
           serviceChargeAmount: includeServiceCharge ? serviceChargeValue : 0,
           deliveryChargeAmount: includeDelivery ? deliveryCharge : 0,
           amountReceived: parseFloat(amountReceived),

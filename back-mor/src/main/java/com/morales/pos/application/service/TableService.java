@@ -367,7 +367,12 @@ public class TableService {
         BigDecimal fixedServiceAmt = request.getServiceChargeAmount() != null ? request.getServiceChargeAmount() : BigDecimal.ZERO;
         if (fixedServiceAmt.compareTo(BigDecimal.ZERO) > 0) {
             invoice.setServiceChargeAmount(fixedServiceAmt);
-            invoice.setServiceChargePercent(BigDecimal.ZERO);
+            // Si no vino porcentaje, calcular el equivalente sobre el subtotal
+            if (serviceChargePercent.compareTo(BigDecimal.ZERO) == 0 && invoice.getSubtotal().compareTo(BigDecimal.ZERO) > 0) {
+                serviceChargePercent = fixedServiceAmt.multiply(BigDecimal.valueOf(100))
+                        .divide(invoice.getSubtotal(), 2, java.math.RoundingMode.HALF_UP);
+            }
+            invoice.setServiceChargePercent(serviceChargePercent);
             invoice.setTotal(invoice.getTotal().add(fixedServiceAmt));
         } else if (serviceChargePercent.compareTo(BigDecimal.ZERO) > 0) {
             BigDecimal serviceChargeAmount = invoice.getTotal()

@@ -5,6 +5,8 @@ import Button from '@/shared/components/ui/Button'
 import { invoiceService } from '@/core/api/invoiceService'
 import { Invoice } from '@/types'
 import { printInvoice } from '@/shared/utils/printInvoice'
+import { useSortableTable } from '@/shared/hooks/useSortableTable'
+import SortableHeader from '@/shared/components/ui/SortableHeader'
 
 const InvoicesPage = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([])
@@ -36,6 +38,14 @@ const InvoicesPage = () => {
 
   const formatCurrency = (value: number) => 
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value)
+
+  const getServiceChargePercent = (invoice: Invoice): number => {
+    if (invoice.serviceChargePercent > 0) return invoice.serviceChargePercent
+    if (invoice.subtotal > 0 && (invoice.serviceChargeAmount || 0) > 0) {
+      return Math.round((invoice.serviceChargeAmount / invoice.subtotal) * 100)
+    }
+    return 0
+  }
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -99,10 +109,27 @@ const InvoicesPage = () => {
   
   // Filtrar según tab activo y término de búsqueda
   const currentInvoices = activeTab === 'active' ? activeInvoices : voidedInvoices
-  const filteredInvoices = currentInvoices.filter(inv => 
-    inv.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inv.customer?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const term = searchTerm.toLowerCase().trim()
+  const filteredInvoices = currentInvoices.filter(inv => {
+    if (!term) return true
+    const customerLabel = (inv.customer?.fullName || inv.customerName || '').toLowerCase()
+    const matches =
+      inv.invoiceNumber?.toLowerCase().includes(term) ||
+      customerLabel.includes(term) ||
+      inv.customer?.documentNumber?.toLowerCase().includes(term) ||
+      inv.paymentMethod?.toLowerCase().includes(term) ||
+      inv.status?.toLowerCase().includes(term)
+    return matches
+  })
+
+  const { sortedItems: sortedInvoices, sort, toggleSort } = useSortableTable<Invoice>(filteredInvoices, {
+    numero: (i) => i.invoiceNumber || '',
+    cliente: (i) => i.customer?.fullName || i.customerName || '',
+    detalles: (i) => i.details?.length || 0,
+    fecha: (i) => i.createdAt || '',
+    total: (i) => i.total || 0,
+    estado: (i) => i.status || '',
+  }, { key: 'fecha', direction: 'desc' })
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -177,17 +204,17 @@ const InvoicesPage = () => {
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="bg-primary-50">
-                  <th className="table-header">N° Factura</th>
-                  <th className="table-header">Cliente</th>
-                  <th className="table-header">Detalles</th>
-                  <th className="table-header">Fecha</th>
-                  <th className="table-header text-right">Total</th>
-                  <th className="table-header text-center">Estado</th>
+                  <SortableHeader label="N° Factura" columnKey="numero" sort={sort} onToggle={toggleSort} className="table-header" />
+                  <SortableHeader label="Cliente" columnKey="cliente" sort={sort} onToggle={toggleSort} className="table-header" />
+                  <SortableHeader label="Detalles" columnKey="detalles" sort={sort} onToggle={toggleSort} className="table-header text-center" />
+                  <SortableHeader label="Fecha" columnKey="fecha" sort={sort} onToggle={toggleSort} className="table-header" />
+                  <SortableHeader label="Total" columnKey="total" sort={sort} onToggle={toggleSort} className="table-header text-right" />
+                  <SortableHeader label="Estado" columnKey="estado" sort={sort} onToggle={toggleSort} className="table-header text-center" />
                   <th className="table-header text-center">Acciones</th>
                 </tr>
               </thead>
             <tbody>
-              {filteredInvoices.map((invoice) => (
+              {sortedInvoices.map((invoice) => (
                 <tr key={invoice.id} className="hover:bg-primary-50/50 transition-colors">
                   <td className="table-cell font-mono">{invoice.invoiceNumber}</td>
                   <td className="table-cell">
@@ -325,10 +352,12 @@ const InvoicesPage = () => {
                     <span>-{formatCurrency(selectedInvoice.discountAmount)}</span>
                   </div>
                 )}
-                {(selectedInvoice as any).serviceChargeAmount > 0 && (
+                {selectedInvoice && ((selectedInvoice.serviceChargeAmount || 0) > 0 || (selectedInvoice.serviceChargePercent || 0) > 0) && (
                   <div className="flex justify-between text-blue-600">
-                    <span>Servicio ({(selectedInvoice as any).serviceChargePercent}%):</span>
-                    <span>{formatCurrency((selectedInvoice as any).serviceChargeAmount)}</span>
+                    <span>
+                      Servicio ({getServiceChargePercent(selectedInvoice)}%):
+                    </span>
+                    <span>{formatCurrency(selectedInvoice.serviceChargeAmount || 0)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-lg">
